@@ -100,11 +100,6 @@ class AudioAid:
         return outputs
 
 class SlimTabManager:
-    def _callback(self, indata, frames, time, status):
-        if status:
-            logging.error(status, file = sys.stderr)
-        self.q.put(indata.copy())
-
     def __init__(self,) :
         self.record_audios = np.array([])
         self.record_names = {}#Dictionary
@@ -119,8 +114,8 @@ class SlimTabManager:
         self.q = queue.Queue()
         self.b = threading.Barrier(2, timeout = 5)
         self.sync_stop_key = False
-        self.input_devices = self.getInputDevices()
-        self.output_devices = self.getOutputDevices()
+        self.input_devices = self._getInputDevices()
+        self.output_devices = self._getOutputDevices()
         self.i = 0
 
         #For UI audio record wave randering
@@ -128,7 +123,7 @@ class SlimTabManager:
 
         for device in self.input_devices:
             try:
-                self.input_stream = self.openRecordStream(device, device['default_samplerate'])
+                self.input_stream = self._openRecordStream(device, device['default_samplerate'])
                 self.device = device
                 self.samplerate = int(device['default_samplerate'])
 
@@ -137,7 +132,88 @@ class SlimTabManager:
                 self.device = None
                 logging.warning('Fail to open stream: ' + str(exception))
                 self.printTime()
-    #Fun for recording 
+            
+    def record(self, filename = ''):
+        self.stop_key = False
+        self.sync_stop_key = False
+        self.tTR = threading.Thread(target = self._tTabRecord)
+        self.tRC = threading.Thread(target = self._tRecordConsume)
+        self.start_time = time.time()
+        self.tTR.start()
+        if not self.device == None :
+            if self.input_stream.active:
+                self.input_stream.stop()
+            self.b.wait()
+            self.input_stream.start()
+            self.tRC.start()       
+        
+    def stopRecord(self):
+        self.stop_time = time.time()
+        if not self.device == None:
+            self.input_stream.stop()
+            self.record_ardata = np.reshape(np.array(self.temp_array), (-1, 2))
+        self.stop_key = True
+        self.tTR.join()
+        self.tRC.join()
+        
+    def saveCurrentRecordData(self, name = None):
+        import tempfile
+        if name is None or name == '' :
+            name = tempfile.mktemp(prefix='rec_',suffix='.wav', dir='')
+        with sf.SoundFile(name, mode='x', samplerate=self.samplerate, channels = self.device['max_input_channels']) as file:
+            file.write(np.reshape(self.record_ardata, (-1, 2)))
+        return name
+
+    def close(self):
+        self.stopRecord()
+        self.input_stream = None
+        self.device = None
+    
+    def setInputDevice(self, deviceIndex):
+        self.device = self.input_devices[deviceIndex]
+        self.input_stream = self.openRecordStream(self.device, self.samplerate)
+
+    def getInputDevicesName(self):
+        outputs = []
+        for device in self.input_devices:
+            outputs.append(device['name'])
+        return outputs
+
+    def getWaveletUpdataFreq(self):
+        return self.samplerate/512
+    
+    def getWavelet(self):
+        return self.this_wavelet
+
+    def getAudioRecorderInfo(self):
+        self.samplerate = samplerate
+        return self.samplerate, self.device
+
+    def getAudioWave(self, name = None):
+        if name is None:
+            return self.record_ardata
+        else:
+            return self.record_audios[self.record_names[name]]
+
+    def printTime(self):
+        print('Record time :' + str(len(self.temp_array)*len(self.this_wavelet)/self.samplerate))
+        if self.driver_check:
+            print('Driver record time:' + str(self.tabRT))
+        print('Now time :' + str(time.time() - self.start_time))
+
+    def print(self):
+        print(self.record_ardata.shape)
+        print(self.record_trdata.shape)
+        print('Tab record time : ' + str(self.record_trdata[-1][0]/1000))
+        print('Audio record time : ' + str(self.record_ardata.shape[0]/self.samplerate)) 
+        print('Delta : ' + str(self.record_trdata[-1][0]/1000 - self.record_ardata.shape[0]/self.samplerate))
+        print('Timer : ' + str(self.stop_time - self.start_time))
+
+    def _callback(self, indata, frames, time, status):
+        if status:
+            logging.error(status, file = sys.stderr)
+        self.q.put(indata.copy())
+
     def _tTabRecord(self):
         try:
             tab_driver = driver.SliMTABDriver("/dev/tty.SLAB_USBtoUART")
@@ -174,59 +250,13 @@ class SlimTabManager:
             self.this_wavelet = self.q.get()
             self.temp_array = self.temp_array + [amp for l in self.this_wavelet for amp in l]
         print('Consumes end')
-            
-    def record(self, filename = ''):
-        self.stop_key = False
-        self.sync_stop_key = False
-        self.tTR = threading.Thread(target = self._tTabRecord)
-        self.tRC = threading.Thread(target = self._tRecordConsume)
-        self.start_time = time.time()
-        self.tTR.start()
-        if not self.device == None :
-            if self.input_stream.active:
-                self.input_stream.stop()
-            self.b.wait()
-            self.input_stream.start()
-            self.tRC.start()       
-        
-    def stopRecord(self):
-        self.stop_time = time.time()
-        if not self.device == None:
-            self.input_stream.stop()
-            self.record_ardata = np.reshape(np.array(self.temp_array), (-1, 2))
-        self.stop_key = True
-        self.tTR.join()
-        self.tRC.join()
-        
-    def saveCurrentRecordData(self, name = None):
-        import tempfile
-        if name is None or name == '' :
-            name = tempfile.mktemp(prefix='rec_',suffix='.wav', dir='')
-        with sf.SoundFile(name, mode='x', samplerate=self.samplerate, channels = self.device['max_input_channels']) as file:
-            file.write(np.reshape(self.record_ardata, (-1, 2)))
-        return name
-
-    def openRecordStream(self, device, sr = 44100, ):
+    
+    def _openRecordStream(self, device, sr = 44100, ):
         logging.info('Openning the stream for device: '+str(device['name']))
         stream = sd.InputStream(samplerate = sr, blocksize = 4096, device = device['index'], channels = device['max_input_channels'], callback = self._callback)
         return stream
 
-    def close(self):
-        self.stopRecord()
-        self.input_stream = None
-        self.device = None
-    
-    def setInputDevice(self, deviceIndex):
-        self.device = self.input_devices[deviceIndex]
-        self.input_stream = self.openRecordStream(self.device, self.samplerate)
-
-    def getInputDevicesName(self):
-        outputs = []
-        for device in self.input_devices:
-            outputs.append(device['name'])
-        return outputs
-
-    def getInputDevices(self):
+    def _getInputDevices(self):
         devices = sd.query_devices()
         
         default_input_device = sd.query_devices(kind = 'input')
@@ -244,7 +274,7 @@ class SlimTabManager:
                     input_devices += [device]
         return input_devices
     
-    def getOutputDevices(self):
+    def _getOutputDevices(self):
         devices = sd.query_devices()
  
         default_output_device = sd.query_devices(kind='output')
@@ -261,35 +291,6 @@ class SlimTabManager:
                     output_devices += [device]
         return output_devices
     
-    def getWaveletUpdataFreq(self):
-        return self.samplerate/512
-    
-    def getWavelet(self):
-        return self.this_wavelet
-
-    def getAudioRecorderInfo(self):
-        self.samplerate = samplerate
-        return self.samplerate, self.device
-
-    def getAudioWave(self, name = None):
-        if name is None:
-            return self.record_ardata
-        else:
-            return self.record_audios[self.record_names[name]]
-
-    def printTime(self):
-        print('Record time :' + str(len(self.temp_array)*len(self.this_wavelet)/self.samplerate))
-        if self.driver_check:
-            print('Driver record time:' + str(self.tabRT))
-        print('Now time :' + str(time.time() - self.start_time))
-
-    def print(self):
-        print(self.record_ardata.shape)
-        print(self.record_trdata.shape)
-        print('Tab record time : ' + str(self.record_trdata[-1][0]/1000))
-        print('Audio record time : ' + str(self.record_ardata.shape[0]/self.samplerate)) 
-        print('Delta : ' + str(self.record_trdata[-1][0]/1000 - self.record_ardata.shape[0]/self.samplerate))
-        print('Timer : ' + str(self.stop_time - self.start_time))
 
 if __name__ == '__main__':
     import time
