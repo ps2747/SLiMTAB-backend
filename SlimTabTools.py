@@ -1,7 +1,4 @@
-import scipy
-import matplotlib.pyplot as plt
 import librosa
-from librosa import display as display
 import numpy as np
 import sounddevice as sd
 

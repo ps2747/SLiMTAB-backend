@@ -1,15 +1,19 @@
 import numpy as np
 import sys
-import SlimTabTools as tls
+
 import librosa
 import threading
 import time
 import queue
-import sounddevice as sd
-import soundfile as sf
-import SlimTabDriver as driver
+
 import tempfile
 import logging
+
+import sounddevice as sd
+import soundfile as sf
+
+import SlimTabTools as tls
+import SlimTabDriver as driver
 
 class AudioAid:
     #Notice that audio recorder and tab driver have different sample rate, they should compute in different time domain
@@ -139,12 +143,14 @@ class SlimTabManager:
         try:
             tab_driver = driver.SliMTABDriver("/dev/tty.SLAB_USBtoUART")
         except Exception as exception:
-                logging.warning('\nFail to access Tab driver data: ' + str(exception))
-                self.b.wait()
-                return
+            logging.warning('\nFail to access Tab driver data: ' + str(exception))
+            self.b.wait()
+            return
         record_tabs = []
         self.b.wait()
-        tab_driver.open()
+        if not tab_driver.open():
+            logging.warning('Device open unsucceed')
+            return 
         tab_driver.reset()
         tab_driver.begin()
         i = 0 
@@ -165,8 +171,8 @@ class SlimTabManager:
             if not self.q.empty():
                 self.this_wavelet = self.q.get()
                 #i += len(self.this_wavelet)
-                self.temp_array = self.temp_array + [amp for l in self.this_wavelet for amp in l]
-
+                #self.temp_array = self.temp_array + [amp for l in self.this_wavelet for amp in l]
+                self.temp_array.append(self.this_wavelet.flatten())
             logging.info('\rRecord time : ' + str(len(self.temp_array)/self.samplerate), end = '')
             #print('\rRecord time : ' + str(i/self.samplerate) + ' now time', end = '')
         while not self.q.empty():
