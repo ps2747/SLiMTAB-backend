@@ -129,7 +129,6 @@ class SlimTabManager:
         for device in self.input_devices:
             try:
                 self.input_stream = self.openRecordStream(device, device['default_samplerate'])
-                #self.input_stream.start()
                 self.device = device
                 self.samplerate = int(device['default_samplerate'])
 
@@ -148,7 +147,8 @@ class SlimTabManager:
             return
         record_tabs = []
         self.b.wait()
-        if not tab_driver.open():
+        self.driver_check = tab_driver.check()
+        if not tab_driver.open() or not self.driver_check:
             logging.warning('Device open unsucceed')
             return 
         tab_driver.reset()
@@ -159,9 +159,8 @@ class SlimTabManager:
             ts, n, tab = tab_driver.read()
             if self.stop_key :
                 break
-            #print(tab)
             record_tabs.append([ts] + [t for t in tab])
-        #self.sync_stop_key = True
+            self.tabRT = ts
         self.record_trdata = np.array(record_tabs)
         tab_driver.end()
 
@@ -170,14 +169,12 @@ class SlimTabManager:
         while not self.stop_key:
             if not self.q.empty():
                 self.this_wavelet = self.q.get()
-                #i += len(self.this_wavelet)
-                #self.temp_array = self.temp_array + [amp for l in self.this_wavelet for amp in l]
                 self.temp_array.append(self.this_wavelet.flatten())
-            logging.info('\rRecord time : ' + str(len(self.temp_array)/self.samplerate), end = '')
-            #print('\rRecord time : ' + str(i/self.samplerate) + ' now time', end = '')
         while not self.q.empty():
+            print('Consuming the rest')
             self.this_wavelet = self.q.get()
             self.temp_array = self.temp_array + [amp for l in self.this_wavelet for amp in l]
+        print('Consumes end')
             
     def record(self, filename = ''):
         self.stop_key = False
@@ -195,8 +192,6 @@ class SlimTabManager:
         
     def stopRecord(self):
         self.stop_time = time.time()
-        #while not self.sync_stop_key:
-        #    pass
         if not self.device == None:
             self.input_stream.stop()
             self.record_ardata = np.reshape(np.array(self.temp_array), (-1, 2))
@@ -277,6 +272,12 @@ class SlimTabManager:
         else:
             return self.record_audios[self.record_names[name]]
 
+    def printTime(self):
+        print('Record time :' + str(len(self.temp_array)*len(self.this_wavelet)/self.samplerate))
+        if self.driver_check:
+            print('Driver record time:' + str(self.tabRT))
+        print('Now time :' + str(time.time() - self.start_time))
+
     def print(self):
         print(self.record_ardata.shape)
         print(self.record_trdata.shape)
@@ -327,6 +328,6 @@ if __name__ == '__main__':
                 manager.close()
                 break
             elif cmd == 'print':
-                manager.print()
+                manager.printTime()
             else:
                 print('Invalid input!!')    
