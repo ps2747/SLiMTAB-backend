@@ -171,7 +171,6 @@ class SlimTabManager:
                 self.this_wavelet = self.q.get()
                 self.temp_array.append(self.this_wavelet.flatten())
         while not self.q.empty():
-            print('Consuming the rest')
             self.this_wavelet = self.q.get()
             self.temp_array = self.temp_array + [amp for l in self.this_wavelet for amp in l]
         print('Consumes end')
@@ -220,6 +219,12 @@ class SlimTabManager:
     def setInputDevice(self, deviceIndex):
         self.device = self.input_devices[deviceIndex]
         self.input_stream = self.openRecordStream(self.device, self.samplerate)
+
+    def getRecordDevicesName(self):
+        outputs = []
+        for device in self.input_devices:
+            outputs.append(device['name'])
+        return outputs
 
     def getInputDevices(self):
         devices = sd.query_devices()
@@ -316,11 +321,7 @@ if __name__ == '__main__':
                 print(manager.getWaveletUpdataFreq())
 
             elif cmd == 'get_devices':
-                devices = manager.getInputDevices()
-                index = 0
-                for device in devices:
-                    print(device['name']  + ' ' + str(index))
-                    index += 1
+                print(manager.getRecordDevicesName())
             elif cmd == 'set_device':
                 manager.setInputDevice(int(arg))
             
