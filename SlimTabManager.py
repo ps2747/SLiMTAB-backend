@@ -220,7 +220,7 @@ class SlimTabManager:
         self.device = self.input_devices[deviceIndex]
         self.input_stream = self.openRecordStream(self.device, self.samplerate)
 
-    def getRecordDevicesName(self):
+    def getInputDevicesName(self):
         outputs = []
         for device in self.input_devices:
             outputs.append(device['name'])
@@ -321,7 +321,7 @@ if __name__ == '__main__':
                 print(manager.getWaveletUpdataFreq())
 
             elif cmd == 'get_devices':
-                print(manager.getRecordDevicesName())
+                print(manager.getInputDevicesName())
             elif cmd == 'set_device':
                 manager.setInputDevice(int(arg))
             
