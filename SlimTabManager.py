@@ -131,7 +131,12 @@ class SlimTabManager:
                 self.device = None
                 logging.warning('Fail to open stream: ' + str(exception))
                 self.printTime()
-            
+        
+    def check(self):
+        if self.device == None:
+            return False
+        else:
+            return True
     def record(self, filename = ''):
         self.stop_key = False
         self.sync_stop_key = False
@@ -139,7 +144,7 @@ class SlimTabManager:
         self.tRC = threading.Thread(target = self._tRecordConsume)
         self.start_time = time.time()
         self.tTR.start()
-        if not self.device == None :
+        if self.check() :
             if self.input_stream.active:
                 self.input_stream.stop()
             self.b.wait()
@@ -148,7 +153,7 @@ class SlimTabManager:
         
     def stopRecord(self):
         self.stop_time = time.time()
-        if not self.device == None:
+        if self.check():
             self.input_stream.stop()
             self.record_ardata = np.reshape(np.array(self.temp_array), (-1, 2))
         self.stop_key = True
