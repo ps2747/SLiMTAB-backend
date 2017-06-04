@@ -110,6 +110,7 @@ class SlimTabManager:
 
         self.audio_aid = AudioAid()
         self.stop_key = False
+        self.record_status = 0
 
         self.q = queue.Queue()
         self.b = threading.Barrier(2, timeout = 5)
@@ -130,7 +131,6 @@ class SlimTabManager:
             except Exception as exception:
                 self.device = None
                 logging.warning('Fail to open stream: ' + str(exception))
-                self.printTime()
         
     def check(self):
         if self.device == None:
@@ -138,6 +138,9 @@ class SlimTabManager:
         else:
             return True
     def record(self, filename = ''):
+        if self.record_status != 0:
+            print("Invalid action, record have been started.")
+            return
         self.stop_key = False
         self.sync_stop_key = False
         self.tTR = threading.Thread(target = self._tTabRecord)
@@ -145,20 +148,29 @@ class SlimTabManager:
         self.start_time = time.time()
         self.tTR.start()
         if self.check() :
+            self.record_status = 1
             if self.input_stream.active:
                 self.input_stream.stop()
             self.b.wait()
             self.input_stream.start()
-            self.tRC.start()       
+            self.tRC.start()
+        else:
+            self.record_status = 0
         
     def stopRecord(self):
+        if self.record_status == 0:
+            return 
+        self.record_status = 0
         self.stop_time = time.time()
         if self.check():
             self.input_stream.stop()
             self.record_ardata = np.reshape(np.array(self.temp_array), (-1, 2))
         self.stop_key = True
-        self.tTR.join()
-        self.tRC.join()
+        try: 
+            self.tTR.join()
+            self.tRC.join()      
+        except Exception:
+            return
         
     def saveCurrentRecordData(self, name = None):
         import tempfile
@@ -169,6 +181,7 @@ class SlimTabManager:
         return name
 
     def close(self):
+        self.record_status = -1
         self.stopRecord()
         self.input_stream = None
         self.device = None
