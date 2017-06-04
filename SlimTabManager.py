@@ -170,8 +170,13 @@ class SlimTabManager:
         self.device = None
     
     def setInputDevice(self, deviceIndex):
-        self.device = self.input_devices[deviceIndex]
-        self.input_stream = self.openRecordStream(self.device, self.samplerate)
+        try:
+            self.device = self.input_devices[deviceIndex]
+            self.input_stream = self._openRecordStream(self.device, self.samplerate)
+            self.samplerate = int(self.device['default_samplerate'])
+        except Exception as exception:
+            self.device = None
+            logging.warning('Fail to open stream: ' + str(exception))
 
     def getInputDevicesName(self):
         outputs = []
