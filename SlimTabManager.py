@@ -115,7 +115,6 @@ class SlimTabManager:
         self.b = threading.Barrier(2, timeout = 5)
         self.sync_stop_key = False
         self.input_devices = self._getInputDevices()
-        self.output_devices = self._getOutputDevices()
         self.i = 0
 
         #For UI audio record wave randering
@@ -230,7 +229,7 @@ class SlimTabManager:
         self.b.wait()
         self.driver_check = tab_driver.check()
         if not tab_driver.open() or not self.driver_check:
-            logging.warning('Device open unsucceed')
+            logging.warning('Tab device open unsucceed')
             return 
         tab_driver.reset()
         tab_driver.begin()
@@ -278,24 +277,6 @@ class SlimTabManager:
                 if default_input_device is not None and device['index'] != default_input_device['index']:
                     input_devices += [device]
         return input_devices
-    
-    def _getOutputDevices(self):
-        devices = sd.query_devices()
- 
-        default_output_device = sd.query_devices(kind='output')
- 
-        output_devices = []
-        if default_output_device is not None:
-            default_output_device['index'] = devices.index(default_output_device)
-            output_devices += [default_output_device]
- 
-        for device in devices:
-            if device['max_output_channels'] > 0:
-                device['index'] = devices.index(device)
-                if default_output_device is not None and device['index'] != default_output_device['index']:
-                    output_devices += [device]
-        return output_devices
-    
 
 if __name__ == '__main__':
     import time
