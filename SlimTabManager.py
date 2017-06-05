@@ -23,22 +23,21 @@ class AudioAid:
         self.bind_audio = np.array([])
         self.bind_tabdata = np.array([])
 
-        self.window_size = 2048
-        self.threshold = 0.8
-
-    def bindAudio(self,audiowave):
+    def bindAudio(self, audiowave):
         self.bind_audio = audiowave
     
     def bindTabData(self, tabdata):
         self.bind_tabdata = tabdata
 
-    def quantization(data, bpm, time_sign_upper =4, time_sign_lower =4, min_note_value = 8):
+    def quantization(self, data, bpm, time_sign_upper =4, time_sign_lower =4, min_note_value = 8):
         section_start = True
         quant_length = (60/bpm)*(time_sign_lower/min_note_value)
+        print(quant_length)
         section_time_length = 60/bpm*4*time_sign_upper/time_sign_lower
-        outputs = np.array()
+        outputs = []
         section_start_time = data[0][0]
-        for i in range(data.size):
+        for i in range(data.shape[0]):
+            print(i)
             if data[i][0] - section_start_time > section_time_length:
                 section_start = True
             if section_start :
@@ -55,17 +54,20 @@ class AudioAid:
                         pause_note_valuetime = qunat_length*(pause_note_length//quant_length +1)
                     pause_note_value = 60/bpm/pause_note_valuetime*time_sign_lower
                     position += 1
-                    outputs = np.append(outputs, np.array([position, pause_note_value, -1, -1, -1, -1, -1, -1]))
+                    outputs.append([position, pause_note_value, -1, -1, -1, -1, -1, -1])
                     sum_note_value += 1/(60/bpm/pause_note_valuetime*time_sign_lower)
             position += 1
-            note_length = data[min(data.size, i+1)] - data[i][0]
+            note_length = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
             if note_length%quant_length <= quant_length/2:
-                note_valuetime = qunat_length*note_length//quant_length 
+                print('samller')
+                note_valuetime = quant_length*(note_length//quant_length)
             else:
+                print('larger')
                 note_valuetime = qunat_length*(note_length//quant_length +1)
-            note_value = 60/bpm/note_valuetime * time_sign_lowe
+            print('Note length : ' + str(note_length) + ', Note  value' + str(note_valuetime))
+            note_value = 60/bpm/note_valuetime * time_sign_lower
             
-            outputs = np.append(outputs, np.array([position, note_value, data[i][2:]]))
+            outputs.append([position, note_value, data[i][1:]])
             sum_note_value += 1/note_value
             if sum_note_value >= 1:
                 section_start = True
@@ -73,22 +75,23 @@ class AudioAid:
         return outputs                
 
     #With corresponded audio data and tab data, use run to correct the tab data by using audio features
-    def bindMerge(self):
+    def bindCalc(self, window_size = 2048, threshold = 0.8, samplerate = 44100):
         if self.bind_audio.size == 0 or self.bind_tabdata.size == 0:
             logging.warning('Binded data is(are) empty!!\n')
-        #Step 1 : Onset detection
-        o_env = librosa.onset.onset_strength(self.bind_audio, sr = args.samplerate, aggregate = np.median, fmax = 8000, n_mels = 256)
-        times = librosa.frames_to_time(np.arange(len(o_env)), sr = args.samplerate)
+            return
+        #Onset detection, label all the onsets and extract the note and tabs at that moment
+        o_env = librosa.onset.onset_strength(self.bind_audio, sr = samplerate, aggregate = np.median, fmax = 8000, n_mels = 256)
+        times = librosa.frames_to_time(np.arange(len(o_env)), sr = samplerate)
         
-        onset_frames = librosa.onset.onset_detect(onset_envelope = o_env, sr= args.samplerate, backtrack = True)
+        onset_frames = librosa.onset.onset_detect(onset_envelope = o_env, sr= samplerate, backtrack = True)
         onset_samples = librosa.frames_to_samples(onset_frames)
 
         i = 0
         outputs = np.array()
         
         for onset in onset_samples:
-            note_contain = tls.NoteDetection(self.bind_audio[onset: onset +self.window_size], self.samplerate, self.threshold)
-            onset_time = librosa.frames_to_time(onset, sr = self.samplerate)
+            note_contain = tls.NoteDetection(self.bind_audio[onset: onset + window_size], samplerate, threshold)
+            onset_time = librosa.frames_to_time(onset, sr = samplerate)
             #Find the tabs where onset detected
             for j in range(i, bind_tabdata.size):
                 if onset_time>= bind_tabdata[j][0] and onset_time < bind_tabdata[min(j+1, bind_tabdata.size)][0]:
@@ -270,7 +273,7 @@ class SlimTabManager:
                 self.temp_array.append(self.this_wavelet.flatten())
         while not self.q.empty():
             self.this_wavelet = self.q.get()
-            self.temp_array = self.temp_array + [amp for l in self.this_wavelet for amp in l]
+            self.temp_array.append(self.this_wavelet.flatten())
         print('Consumes end')
     
     def _openRecordStream(self, device, sr = 44100, ):
@@ -335,5 +338,9 @@ if __name__ == '__main__':
                 break
             elif cmd == 'print':
                 manager.printTime()
+            elif cmd == 'quant':
+                aa = AudioAid()
+                test_data = np.array([[0.0, 1, 0, 0, 0, 0, 0], [0.5, 1, 0, 0, 0, 0, 0], [1.0, 2, 0, 0, 0, 0, 0], [1.5, 3, 0, 0, 0, 0, 0], [2.0, -1, -1, -1, -1, -1, -1]])
+                print(aa.quantization(test_data, 120))
             else:
                 print('Invalid input!!')    
