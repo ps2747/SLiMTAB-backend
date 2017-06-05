@@ -32,12 +32,10 @@ class AudioAid:
     def quantization(self, data, bpm, time_sign_upper =4, time_sign_lower =4, min_note_value = 8):
         section_start = True
         quant_length = (60/bpm)*(time_sign_lower/min_note_value)
-        print(quant_length)
         section_time_length = 60/bpm*4*time_sign_upper/time_sign_lower
         outputs = []
         section_start_time = data[0][0]
         for i in range(data.shape[0]):
-            print(i)
             if data[i][0] - section_start_time > section_time_length:
                 section_start = True
             if section_start :
@@ -58,16 +56,15 @@ class AudioAid:
                     sum_note_value += 1/(60/bpm/pause_note_valuetime*time_sign_lower)
             position += 1
             note_length = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
+            if note_length == 0:
+                pass
             if note_length%quant_length <= quant_length/2:
-                print('samller')
                 note_valuetime = quant_length*(note_length//quant_length)
             else:
-                print('larger')
-                note_valuetime = qunat_length*(note_length//quant_length +1)
-            print('Note length : ' + str(note_length) + ', Note  value' + str(note_valuetime))
+                note_valuetime = quant_length*(note_length//quant_length +1)
             note_value = 60/bpm/note_valuetime * time_sign_lower
             
-            outputs.append([position, note_value, data[i][1:]])
+            outputs.append([position, note_value, int(data[i][1]), int(data[i][2]), int(data[i][3]), int(data[i][4]), int(data[i][5]), int(data[i][6])])
             sum_note_value += 1/note_value
             if sum_note_value >= 1:
                 section_start = True
@@ -340,7 +337,7 @@ if __name__ == '__main__':
                 manager.printTime()
             elif cmd == 'quant':
                 aa = AudioAid()
-                test_data = np.array([[0.0, 1, 0, 0, 0, 0, 0], [0.5, 1, 0, 0, 0, 0, 0], [1.0, 2, 0, 0, 0, 0, 0], [1.5, 3, 0, 0, 0, 0, 0], [2.0, -1, -1, -1, -1, -1, -1]])
+                test_data = np.array([[0.0122, 1, 0, 0, 0, 0, 0], [1.03322, 1, 0, 0, 0, 0, 0], [1.543423, 2, 0, 0, 0, 0, 0], [1.7523423, 3, 0, 0, 0, 0, 0], [2.15435, -1, -1, -1, -1, -1, -1], [2.362345, -1, -1, -1, -1, -1, -1]])
                 print(aa.quantization(test_data, 120))
             else:
                 print('Invalid input!!')    
