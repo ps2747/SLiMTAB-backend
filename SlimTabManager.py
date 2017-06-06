@@ -29,13 +29,16 @@ class AudioAid:
     def bindTabData(self, tabdata):
         self.bind_tabdata = tabdata
 
-    def quantization(self, data, bpm, time_sign_upper =4, time_sign_lower =4, min_note_value = 8):
+    def quantization(self, data, bpm, time_sign_upper =4, time_sign_lower =4, min_note_value = 8, bypass_first_section = True):
         section_start = True
         quant_length = (60/bpm)*(time_sign_lower/min_note_value)
         section_time_length = 60/bpm*4*time_sign_upper/time_sign_lower
         outputs = []
         section_start_time = data[0][0]
         for i in range(data.shape[0]):
+            if bypass_first_section:
+                if data[i][0] < section_time_length:
+                    continue
             if data[i][0] - section_start_time > section_time_length:
                 section_start = True
             if section_start :
@@ -57,7 +60,7 @@ class AudioAid:
             position += 1
             note_length = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
             if note_length == 0:
-                pass
+                continue
             if note_length%quant_length <= quant_length/2:
                 note_valuetime = quant_length*(note_length//quant_length)
             else:
@@ -68,7 +71,6 @@ class AudioAid:
             sum_note_value += 1/note_value
             if sum_note_value >= 1:
                 section_start = True
-
         return outputs                
 
     #With corresponded audio data and tab data, use run to correct the tab data by using audio features
@@ -84,7 +86,7 @@ class AudioAid:
         onset_samples = librosa.frames_to_samples(onset_frames)
 
         i = 0
-        outputs = np.array()
+        outputs = []
         
         for onset in onset_samples:
             note_contain = tls.NoteDetection(self.bind_audio[onset: onset + window_size], samplerate, threshold)
@@ -96,8 +98,9 @@ class AudioAid:
                     i = j
                     break
             time_n_tabs = np.append(onset_time, tls.TabCorrection(tab_data, note_contain))
-            outputs = np.append(outputs, time_n_tabs)
-        return outputs
+            outputs.append(time_n_tabs)
+        outputs.append([self.bind_tabdata.size[-1][0], -1, -1, -1, -1, -1, -1])#set a pause note at the end
+        return np.array(outputs)
 
 class SlimTabManager:
     def __init__(self,) :
