@@ -34,4 +34,14 @@ def TabCorrection(tabs, note_contain, open_tab =openTab):
             out_tabs.append([i, closest_note - open_tab[i]])
     return out_tabs
 
+def len2ValueSeparation(length, min_value = 32):
+    ret = []
+    i = 0
+    while length >= 1/32:
+        ret.append(int(length//(1/(2**i))))
+        length = length%(1/(2**i))
+        i +=1
+    return ret
         
+if __name__ == '__main__':
+    print(len2ValueSeparation(0.375))
