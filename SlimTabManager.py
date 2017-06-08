@@ -28,7 +28,36 @@ class AudioAid:
     def bindTabData(self, tabdata):
         self.bind_tabdata = tabdata
 
-    def quantization(self, data, bpm, time_sign_upper =4, time_sign_lower =4, min_note_value = 8, bypass_first_section = True):
+    #With corresponded audio data and tab data, use run to correct the tab data by using audio features
+    def bindCalc(self, window_size = 2048, threshold = 0.8, samplerate = 44100):
+        if self.bind_audio.size == 0 or self.bind_tabdata.size == 0:
+            logging.warning('Binded data is(are) empty!!\n')
+            return
+        #Onset detection, label all the onsets and extract the note and tabs at that moment
+        o_env = librosa.onset.onset_strength(self.bind_audio, sr = samplerate, aggregate = np.median, fmax = 8000, n_mels = 256)
+        times = librosa.frames_to_time(np.arange(len(o_env)), sr = samplerate)
+        
+        onset_frames = librosa.onset.onset_detect(onset_envelope = o_env, sr= samplerate, backtrack = True)
+        onset_samples = librosa.frames_to_samples(onset_frames)
+
+        i = 0
+        outputs = []
+        for onset in onset_samples:
+            note_contain = tls.NoteDetection(self.bind_audio[onset: onset + window_size], samplerate, threshold)
+            onset_time = librosa.frames_to_time(onset, sr = samplerate)
+            #Find the tabs where onset detected
+            for j in range(i, bind_tabdata.size):
+                if onset_time>= bind_tabdata[j][0] and onset_time < bind_tabdata[min(j+1, bind_tabdata.size)][0]:
+                    tab_data =  bind_tabdata[j][1:]
+                    i = j
+                    break
+            time_n_tabs = np.append(onset_time, tls.TabCorrection(tab_data, note_contain))
+            outputs.append(time_n_tabs)
+        outputs.append([self.bind_tabdata.size[-1][0], -1, -1, -1, -1, -1, -1])#set a pause note at the end
+        ret = self._quantization(np.array(outputs))
+        return ret
+
+    def _quantization(self, data, bpm, time_sign_upper =4, time_sign_lower =4, min_note_value = 8, bypass_first_section = True):
         section_start = True
         quant_length = (60/bpm)*(time_sign_lower/min_note_value)
         section_time_length = 60/bpm*4*time_sign_upper/time_sign_lower
@@ -70,36 +99,8 @@ class AudioAid:
             sum_note_value += 1/note_value
             if sum_note_value >= 1:
                 section_start = True
-        return outputs                
+        return np.array(outputs)                
 
-    #With corresponded audio data and tab data, use run to correct the tab data by using audio features
-    def bindCalc(self, window_size = 2048, threshold = 0.8, samplerate = 44100):
-        if self.bind_audio.size == 0 or self.bind_tabdata.size == 0:
-            logging.warning('Binded data is(are) empty!!\n')
-            return
-        #Onset detection, label all the onsets and extract the note and tabs at that moment
-        o_env = librosa.onset.onset_strength(self.bind_audio, sr = samplerate, aggregate = np.median, fmax = 8000, n_mels = 256)
-        times = librosa.frames_to_time(np.arange(len(o_env)), sr = samplerate)
-        
-        onset_frames = librosa.onset.onset_detect(onset_envelope = o_env, sr= samplerate, backtrack = True)
-        onset_samples = librosa.frames_to_samples(onset_frames)
-
-        i = 0
-        outputs = []
-        
-        for onset in onset_samples:
-            note_contain = tls.NoteDetection(self.bind_audio[onset: onset + window_size], samplerate, threshold)
-            onset_time = librosa.frames_to_time(onset, sr = samplerate)
-            #Find the tabs where onset detected
-            for j in range(i, bind_tabdata.size):
-                if onset_time>= bind_tabdata[j][0] and onset_time < bind_tabdata[min(j+1, bind_tabdata.size)][0]:
-                    tab_data =  bind_tabdata[j][1:]
-                    i = j
-                    break
-            time_n_tabs = np.append(onset_time, tls.TabCorrection(tab_data, note_contain))
-            outputs.append(time_n_tabs)
-        outputs.append([self.bind_tabdata.size[-1][0], -1, -1, -1, -1, -1, -1])#set a pause note at the end
-        return np.array(outputs)
 
 class SlimTabManager:
     def __init__(self,) :
@@ -140,6 +141,13 @@ class SlimTabManager:
             return True
         else:
             return False
+    
+    def calc(self):
+        ad = AudioAid()
+        ad.bindAudio(self.record_ardata)
+        ad.bindTabData(self.record_trdata)
+        merge_data = ad.bindCalc()
+
 
     def record(self, filename = ''):
         if self.record_status != 0:
