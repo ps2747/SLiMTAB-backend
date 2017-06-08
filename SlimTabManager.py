@@ -183,6 +183,7 @@ class SlimTabManager:
         ad.bindAudio(self.record_ardata)
         ad.bindTabData(self.record_trdata)
         merge_data = ad.calcResult()
+        return merge_data
 
 
     def record(self, filename = ''):
