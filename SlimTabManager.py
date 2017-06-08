@@ -73,7 +73,6 @@ class AudioAid:
                 section_start = False
                 sum_note_value = 0
                 section_start_time += section_time_length
-                position = 0
                 #For some situation that note don't start at the first beat of section
                 if data[i][0] -section_start_time >= quant_length:
                     pause_note_length = data[i][0] -section_start_time
@@ -82,10 +81,8 @@ class AudioAid:
                     else:
                         pause_note_valuetime = qunat_length*(pause_note_length//quant_length +1)
                     pause_note_value = 60/bpm/pause_note_valuetime*time_sign_lower
-                    position += 1
-                    outputs.append([position, pause_note_value, -1, -1, -1, -1, -1, -1])
+                    outputs.append([pause_note_value, -1, -1, -1, -1, -1, -1])
                     sum_note_value += 1/(60/bpm/pause_note_valuetime*time_sign_lower)
-            position += 1
             note_length = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
             if note_length == 0:
                 continue
@@ -95,7 +92,7 @@ class AudioAid:
                 note_valuetime = quant_length*(note_length//quant_length +1)
             note_value = 60/bpm/note_valuetime * time_sign_lower
             
-            outputs.append([position, note_value, int(data[i][1]), int(data[i][2]), int(data[i][3]), int(data[i][4]), int(data[i][5]), int(data[i][6])])
+            outputs.append([note_value, int(data[i][1]), int(data[i][2]), int(data[i][3]), int(data[i][4]), int(data[i][5]), int(data[i][6])])
             sum_note_value += 1/note_value
             if sum_note_value >= 1:
                 section_start = True
