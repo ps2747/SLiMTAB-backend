@@ -135,10 +135,11 @@ class SlimTabManager:
                 logging.warning('Fail to open stream: ' + str(exception))
         
     def check(self):
-        if self.device == None:
-            return False
-        else:
+        curr_devices = self._getInputDevices()
+        if curr_devices[self.device['index']]['name'] == self.device['name']:
             return True
+        else:
+            return False
 
     def record(self, filename = ''):
         if self.record_status != 0:
@@ -295,6 +296,7 @@ class SlimTabManager:
             if device['max_input_channels']> 0:
                 device['index'] = devices.index(device)
 
+                #In windows, there might be no defaults
                 if default_input_device is None or device['index'] != default_input_device['index']:
                     input_devices += [device]
         return input_devices
