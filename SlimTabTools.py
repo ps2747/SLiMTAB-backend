@@ -18,7 +18,7 @@ def NoteDetection (audio, sr, thresh):
 
 ##The tab input should be a size of 6 numpy array for six position
 def TabCorrection(tabs, note_contain, open_tab =openTab):
-    out_tabs = np.zeros(6, dtype=np.int)
+    out_tabs = []
     for i in range(len(tabs)):
         note = (tabs[i] + open_tab[i])%12
         closest_note = -1
@@ -29,10 +29,9 @@ def TabCorrection(tabs, note_contain, open_tab =openTab):
             if delta < min_delta and delta < 2:
                 closest_note = note_candi
                 min_delta = delta
-        if closest_note == -1:
-            out_tabs[i] = -1 #-1 represent the string without attacked, which also means the pressed note is not exist in the note candidates
-        else:
-            out_tabs[i] = np.int(closest_note - open_tab[i])
+        #Only restore tabs that is attacked
+        if closest_note != -1:
+            out_tabs.append([i, closest_note - open_tab[i]])
     return out_tabs
 
         

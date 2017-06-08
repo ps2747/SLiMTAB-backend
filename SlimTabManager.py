@@ -51,9 +51,9 @@ class AudioAid:
                     tab_data =  bind_tabdata[j][1:]
                     i = j
                     break
-            time_n_tabs = np.append(onset_time, tls.TabCorrection(tab_data, note_contain))
-            outputs.append(time_n_tabs)
-        outputs.append([self.bind_tabdata.size[-1][0], -1, -1, -1, -1, -1, -1])#set a pause note at the end
+            time_n_tabs = [onset_time].append(tls.TabCorrection(tab_data, note_contain))
+            outputs.append([time_n_tabs])
+        outputs.append([[self.bind_tabdata.size[-1][0]]])#set a pause note at the end
         ret = self._quantization(np.array(outputs))
         return ret
 
@@ -81,7 +81,7 @@ class AudioAid:
                     else:
                         pause_note_valuetime = qunat_length*(pause_note_length//quant_length +1)
                     pause_note_value = 60/bpm/pause_note_valuetime*time_sign_lower
-                    outputs.append([pause_note_value, -1, -1, -1, -1, -1, -1])
+                    outputs.append([pause_note_value])
                     sum_note_value += 1/(60/bpm/pause_note_valuetime*time_sign_lower)
             note_length = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
             if note_length == 0:
@@ -351,6 +351,6 @@ if __name__ == '__main__':
             elif cmd == 'quant':
                 aa = AudioAid()
                 test_data = np.array([[0.0122, 1, 0, 0, 0, 0, 0], [1.03322, 1, 0, 0, 0, 0, 0], [1.543423, 2, 0, 0, 0, 0, 0], [1.7523423, 3, 0, 0, 0, 0, 0], [2.15435, -1, -1, -1, -1, -1, -1], [2.362345, -1, -1, -1, -1, -1, -1]])
-                print(aa.quantization(test_data, 120))
+                print(aa._quantization(test_data, 120))
             else:
                 print('Invalid input!!')    
