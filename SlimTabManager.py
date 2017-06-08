@@ -15,9 +15,6 @@ import soundfile as sf
 import SlimTabTools as tls
 import SlimTabDriver as driver
 
-def devicecheck():
-
-
 class AudioAid:
     #Notice that audio recorder and tab driver have different sample rate, they should compute in different time domain
     def __init__(self, samplerate=44100) :
