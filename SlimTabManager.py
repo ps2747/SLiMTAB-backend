@@ -15,11 +15,13 @@ import soundfile as sf
 import SlimTabTools as tls
 import SlimTabDriver as driver
 
+def devicecheck():
+
+
 class AudioAid:
     #Notice that audio recorder and tab driver have different sample rate, they should compute in different time domain
-    def __init__(self, samplerate=44100, tab_sr = 5000) :
+    def __init__(self, samplerate=44100) :
         self.samplerate = samplerate
-        self.tab_sr = tab_sr
         self.bind_audio = np.array([])
         self.bind_tabdata = np.array([])
 
@@ -46,7 +48,7 @@ class AudioAid:
                 sum_note_value = 0
                 section_start_time += section_time_length
                 position = 0
-                #For some situation that note don't start at the firt beat of section
+                #For some situation that note don't start at the first beat of section
                 if data[i][0] -section_start_time >= quant_length:
                     pause_note_length = data[i][0] -section_start_time
                     if pause_note_length%quant_length <= quant_length/2:
@@ -140,6 +142,7 @@ class SlimTabManager:
             return False
         else:
             return True
+
     def record(self, filename = ''):
         if self.record_status != 0:
             print("Invalid action, record have been started.")
@@ -274,7 +277,7 @@ class SlimTabManager:
         while not self.q.empty():
             self.this_wavelet = self.q.get()
             self.temp_array.append(self.this_wavelet.flatten())
-        print('Consumes end')
+        #print('Consumes end')
     
     def _openRecordStream(self, device, sr = 44100, ):
         logging.info('Openning the stream for device: '+str(device['name']))
@@ -295,7 +298,7 @@ class SlimTabManager:
             if device['max_input_channels']> 0:
                 device['index'] = devices.index(device)
 
-                if default_input_device is not None and device['index'] != default_input_device['index']:
+                if default_input_device is None or device['index'] != default_input_device['index']:
                     input_devices += [device]
         return input_devices
 
