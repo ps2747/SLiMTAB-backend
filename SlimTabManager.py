@@ -205,6 +205,9 @@ class SlimTabManager:
             outputs.append(device['name'])
         return outputs
 
+    def getCurrDeviceName(self):
+        return self.device['name']
+
     def getWaveletUpdataFreq(self):
         return self.samplerate/512
     
