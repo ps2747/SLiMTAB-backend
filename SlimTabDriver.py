@@ -1,70 +1,66 @@
 #!/usr/bin/python3
 
-import serial
+import socket
 import time
 import struct
-
-def list_com_ports():
-    import serial.tools.list_ports
-    return [x.device for x in serial.tools.list_ports.comports()]
+import threading
 
 class SliMTABDriver:
-    def __init__(self, dev=''):
-        self.dev = dev
-        self.num_frets = 7
-        self.port = None
+    def __init__(self, ip=''):
+        self.num_frets = 8
         self.status = 0
-    
+        self.s_in = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s_cmd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.s_cmd.bind(('', 5555))
+        self.s_cmd.settimeout(1)
+        self.dev_ip = ip
+        self.conn = None
+
+    # Return estimated transmiting time
     def check(self):
-        from sys import platform
-        import os
-        return os.access(self.dev, os.W_OK | os.R_OK)
-    
-    def setDevice(self, dev):
-        if self.status == 0:
-            self.dev = dev
-
-    def open(self):
-        try:
-            self.port = serial.Serial(self.dev, baudrate=9600)
-        except SerialException:
-            return False
-        finally:
-            self.status = 1
-            return True
-
-    def close(self):
-        self.port.close()
-        self.port = None
-        self.status = 0
+        start = time.perf_counter()
+        if self._send_cmd(b'\xAB'):
+            return (time.perf_counter() - start) / 2
+        else:
+            return -1
 
     def reset(self):
-        self.port.write(b'\xAB')
-        self.port.flush()
+        return self._send_cmd(b'\xAB')
 
     def read(self):
-        while True:
-            ts = struct.unpack("<I", self.port.read(4))[0]/10
-            l = struct.unpack("<B", self.port.read(1))[0]
-            d = self.port.read(l)
-            if self.port.read(1) == b'\xFF':
-                ret = [0] * 6
-                for dd in d:
-                    ret[dd//self.num_frets] = max(ret[dd//self.num_frets], dd%self.num_frets+1)
-                return ts, l, ret
-            
-            while self.port.read(1) != b'\xFF':
-                pass
+        ts = struct.unpack("<I", self.conn.recv(4))[0]
+        l = struct.unpack("<B", self.conn.recv(1))[0]
+        d = self.conn.recv(l)
+        ret = [0] * 6
+        for dd in d:
+            ret[dd//self.num_frets] = max(ret[dd//self.num_frets], dd%self.num_frets+1)
+        return ts, l, ret
+    def open(self):
+        self.s_in.bind(('0.0.0.0', 5555))
+        self.s_in.listen()
+        self._send_cmd(b'\xAA')
+        self.conn, _ = self.s_in.accept()
+
+    def close(self):
+        self._send_cmd(b'\xBB')
+        self.conn.close()
+        self.conn = None
 
     def begin(self):
-        self.port.write(b'\xCD')
-        self.port.flush()
-        self.status = 2
+        return self._send_cmd(b'\xCD')
 
     def end(self):
-        self.port.write(b'\xEF')
-        self.port.flush()
-        self.status = 1
+        return self._send_cmd(b'\xEF')
+
+    def _send_cmd(self, cmd):
+        try:
+            self.s_cmd.sendto(cmd, (self.dev_ip, 6666))
+            data, addr = self.s_cmd.recvfrom(1024)
+            return True
+        except ConnectionResetError:
+            return False
+        except socket.timeout:
+            return False
         
 
 ############################
@@ -79,17 +75,28 @@ signal.signal(signal.SIGINT, signal_handler)
 ############################
 
 if __name__ == '__main__':
-    instance = SliMTABDriver("/dev/tty.SLAB_USBtoUART")
-    if not instance.check():
-        print('You do not have permission to access device')
+    instance = SliMTABDriver("192.168.100.1")
+    delay = instance.check()
+    if delay != -1:
+        print('Latency: '+str(delay))
+    else:
         sys.exit(1)
-    if not instance.open():
-        print('Cannot open device')
-        sys.exit(1)
-    instance.reset()
 
+    instance.open()
+    start = time.perf_counter()
+    instance.reset()
     instance.begin()
     while not exit_loop:
         print(instance.read())
+    print(time.perf_counter()-start)
     instance.end()
     instance.close()
+    #instance.begin()
+
+    #while not exit_loop:
+    #    print(instance.read())
+
+    #instance.end()
+
+
+
