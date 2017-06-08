@@ -59,80 +59,78 @@ class AudioAid:
 
     def _quantization(self, data, bpm, time_sign_upper =4, time_sign_lower =4, min_note_value = 8, bypass_first_section = True):
         quant_length = (60/bpm)*(time_sign_lower/min_note_value)
-        section_time_length = 60/bpm*4*time_sign_upper/time_sign_lower
         section_length = time_sign_upper/time_sign_lower
         outputs = []
         section = []
         section_start_time = 0
-        sum_note_value = 0
+        sum_note_len = 0
         sec_start = True
 
+        #Quantize and remap data
+        for i in range(data.shape[0]):
+            if data[i][0]%quant_length <= quant_length/2:
+                data[i][0]=(data[i][0]//quant_length)*(1/min_note_value)
+            else:
+                data[i][0]=(data[i][0]//quant_length + 1)*(1/min_note_value)
+        
         for i in range(data.shape[0]):
             if bypass_first_section:
-                if data[i][0] < section_time_length:
+                if data[i][0] < 1:
                     continue
-                section_start_time = section_time_length
+                section_start_time = 1
 
-            if data[i][0]%quant_length <= quant_length/2:
-                data[i][0]=quant_length*(data[i][0]//quant_length)
-            else:
-                data[i][0]=quant_length*(data[i][0]//quant_length + 1)
-
-            #Deal with
+            #Deal with section start with no audio inputs
             if data[i][0] > section_start_time and sec_start:
-                pause_len = (data[i][0] - section_start_time)/section_time_length
+                pause_len = (data[i][0] - section_start_time)
                 pause_value_num = tls.len2ValueSeparation(pause_len)
                 for idx, valuenum in enumerate(pause_value_num):
                     for j in range(valuenum):
                         section.append([2**idx])
-                        sum_note_value += 1/2**idx
+                        sum_note_len += 1/2**idx
             sec_start = False
-            if data[min(data.shape[0]-1, i+1)][0]%quant_length <= quant_length/2:
-                note_end_time = quant_length*(data[min(data.shape[0]-1, i+1)][0]//quant_length)
-            else:
-                note_end_time = quant_length*(data[min(data.shape[0]-1, i+1)][0]//quant_length + 1)
-            note_length = note_end_time - data[i][0]
-            if note_length == 0:
+            note_len = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
+            if note_len == 0:
                 continue
-
-            note_value = 60/bpm/note_length * time_sign_lower
             
-            if sum_note_value + 1/note_value <= section_length:
-                section.append([note_value] + np.array(data[i][1:]).tolist())
-                sum_note_value += 1/note_value
+            if sum_note_len + note_len <= section_length:
+                note_value_num = tls.len2ValueSeparation(note_len)
+                for idx, valuenum in enumerate(note_value_num):          
+                    for j in range(valuenum):
+                        section.append([2**idx] + np.array(data[i][1:]).tolist())
+                sum_note_len += note_len
 
-                if sum_note_value == section_length:
+                if sum_note_len == section_length:
                     outputs.append(section)
                     section = []
-                    section_start_time += section_time_length
-                    sum_note_value = 0
+                    section_start_time += 1
+                    sum_note_len = 0
                     sec_start = True
             
             else:#When section is full
                 #Fill the section with the notes
-                section_start_time += section_time_length
-                fill_note_len = (section_length - sum_note_value)
+                section_start_time += 1
+                fill_note_len = section_length - sum_note_len
                 fill_value_num = tls.len2ValueSeparation(fill_note_len)
                 for idx, valuenum in enumerate(fill_value_num):          
                     for j in range(valuenum):
                         section.append([2**idx] + np.array(data[i][1:]).tolist())
                 outputs.append(section)
                 section = []
-                sum_note_value = 0 
+                sum_note_len = 0 
                 sec_start = True
-                rest_note_len = 1/note_value - fill_note_len
+                rest_note_len = note_len - fill_note_len
                 rest_value_num = tls.len2ValueSeparation(rest_note_len)
                 for idx, valuenum in enumerate(rest_value_num):          
                     for j in range(valuenum):
                         section.append([2**idx] + np.array(data[i][1:]).tolist())
                         if idx == 0:
-                            section_start_time += section_time_length
-                            sum_note_value = 0
+                            section_start_time += 1
+                            sum_note_len = 0
                             sec_start = True
                             outputs.append(section)
                             section = []
                         else:
-                            sum_note_value += 1/2**idx
+                            sum_note_len += 1/2**idx
                             sec_start = False
             
         if section != []:
@@ -393,6 +391,10 @@ if __name__ == '__main__':
                 aa = AudioAid()
                 test_data = np.array([[1.03322, 1, 1], [4.324234234, 1, 2], [5.2341234, 1, 3], [6.2341341234, 1, 4], [6.734125135, 1, 5], [7.12341234124, 1, 6]])
                 #test_data = np.array([[0.0122, 1, 0, 0, 0, 0, 0], [1.03322, 1, 0, 0, 0, 0, 0], [1.543423, 2, 0, 0, 0, 0, 0], [1.7523423, 3, 0, 0, 0, 0, 0], [2.15435, -1, -1, -1, -1, -1, -1], [2.362345, -1, -1, -1, -1, -1, -1]])
-                print(aa._quantization(test_data, 155, bypass_first_section = False))
+                if len(arg) == 0:
+                    arg = 120
+                bpm = int(arg) 
+                print('bpm : ' + str(bpm))
+                print(aa._quantization(test_data, bpm, bypass_first_section = False))
             else:
                 print('Invalid input!!')    
