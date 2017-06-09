@@ -335,7 +335,10 @@ class SlimTabManager:
     def _getInputDevices(self):
         devices = sd.query_devices()
         
-        default_input_device = sd.query_devices(kind = 'input')
+        if sd.default.device['input'] == -1:
+            default_input_device = None
+        else:
+            default_input_device = devices[sd.default.device['input']]
 
         input_devices = []
         if default_input_device is not None:
