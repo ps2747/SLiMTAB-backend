@@ -178,7 +178,11 @@ class SlimTabManager:
         else:
             return False
     
-    def calc(self, ar_data = self.record_ardata, tr_data = self.record_trdata):
+    def calc(self, ar_data = None, tr_data = None):
+        if ar_data == None:
+            ar_data = self.record_ardata
+        if tr_data == None:
+            tr_data = self.record_trdata
         audio_aid.bindAudio(ar_data)
         audio_aid.bindTabData(tr_data)
         return audio_aid.calcResult()
