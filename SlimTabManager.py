@@ -85,7 +85,7 @@ class AudioAid:
                 pause_value_num = tls.len2ValueSeparation(pause_len)
                 for idx, valuenum in enumerate(pause_value_num):
                     for j in range(valuenum):
-                        section.append([2**idx])
+                        section.append([2**idx, 0])
                         sum_note_len += 1/2**idx
             sec_start = False
             note_len = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
