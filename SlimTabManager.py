@@ -273,7 +273,7 @@ class SlimTabManager:
 
     def getDefaultDevice(self):
         if sd.default.device['input'] != -1:
-            return sd.default.device['input']
+            return {'input':sd.default.device['input'], 'output': sd.default.device['output']} 
         else:
             return None
 
