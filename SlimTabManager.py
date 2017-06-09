@@ -273,10 +273,7 @@ class SlimTabManager:
             return self.record_audios[self.record_names[name]]
 
     def getDefaultDevice(self):
-        if sd.default.device['input'] != -1:
-            return {'input':sd.default.device['input'], 'output': sd.default.device['output']} 
-        else:
-            return None
+        return {'input':sd.default.device['input'], 'output': sd.default.device['output']} 
 
     def printTime(self):
         print('Record time :' + str(len(self.temp_array)*len(self.this_wavelet)/self.samplerate))
