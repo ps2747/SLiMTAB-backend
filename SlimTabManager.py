@@ -271,6 +271,12 @@ class SlimTabManager:
         else:
             return self.record_audios[self.record_names[name]]
 
+    def getDefaultDevice(self):
+        if sd.default.device['input'] != -1:
+            return sd.default.device['input']
+        else:
+            return None
+
     def printTime(self):
         print('Record time :' + str(len(self.temp_array)*len(self.this_wavelet)/self.samplerate))
         if self.driver_check:
@@ -402,5 +408,7 @@ if __name__ == '__main__':
                 bpm = int(arg) 
                 print('bpm : ' + str(bpm))
                 print(aa._quantization(test_data, bpm, bypass_first_section = False))
+            elif cmd == 'default_name':
+                print(manager.getDefaultDeviceName())
             else:
                 print('Invalid input!!')    
