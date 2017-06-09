@@ -178,12 +178,10 @@ class SlimTabManager:
         else:
             return False
     
-    def calc(self):
-        ad = AudioAid()
-        ad.bindAudio(self.record_ardata)
-        ad.bindTabData(self.record_trdata)
-        merge_data = ad.calcResult()
-        return merge_data
+    def calc(self, ar_data = self.record_ardata, tr_data = self.record_trdata):
+        audio_aid.bindAudio(ar_data)
+        audio_aid.bindTabData(tr_data)
+        return audio_aid.calcResult()
 
 
     def record(self, filename = ''):
