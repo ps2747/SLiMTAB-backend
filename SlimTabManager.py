@@ -248,6 +248,7 @@ class SlimTabManager:
 
     def getInputDevicesName(self):
         outputs = []
+        self._getInputDevices()
         for device in self.input_devices:
             outputs.append(device['name'])
         return outputs
