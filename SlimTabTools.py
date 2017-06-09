@@ -42,6 +42,5 @@ def len2ValueSeparation(length, min_value = 32):
         length = length%(1/(2**i))
         i +=1
     return ret
-        
 if __name__ == '__main__':
     print(len2ValueSeparation(0.375))
