@@ -30,11 +30,16 @@ class AudioAid:
 
     #With corresponded audio data and tab data, use run to correct the tab data by using audio features
     def calcResult(self, window_size = 2048, threshold = 0.8, samplerate = 44100):
-        if self.bind_audio.size == 0 or self.bind_tabdata.size == 0:
-            logging.warning('Binded data is(are) empty!!\n')
+        if self.bind_audio.size == 0 : 
+            logging.warning('Binded audio data is(are) empty!!\n')
+            return
+        if self.bind_tabdata.size == 0:
+            logging.warning('Binded tab data is(are) empty!!\n')
             return
         #Onset detection, label all the onsets and extract the note and tabs at that moment
-        o_env = librosa.onset.onset_strength(self.bind_audio, sr = samplerate, aggregate = np.median, fmax = 8000, n_mels = 256)
+        mono = librosa.core.to_mono(self.bind_audio.T)
+        #mono = self.bind_audio[2][:]
+        o_env = librosa.onset.onset_strength(mono, sr = samplerate, aggregate = np.median, fmax = 8000, n_mels = 256)
         times = librosa.frames_to_time(np.arange(len(o_env)), sr = samplerate)
         
         onset_frames = librosa.onset.onset_detect(onset_envelope = o_env, sr= samplerate, backtrack = True)
@@ -43,18 +48,26 @@ class AudioAid:
         i = 0
         outputs = []
         for onset in onset_samples:
-            note_contain = tls.NoteDetection(self.bind_audio[onset: onset + window_size], samplerate, threshold)
-            onset_time = librosa.frames_to_time(onset, sr = samplerate)
+            note_contain = tls.NoteDetection(mono[onset: onset + window_size], samplerate, threshold)
+            onset_time = onset/samplerate *1000
             #Find the tabs where onset detected
-            for j in range(i, bind_tabdata.size):
-                if onset_time>= bind_tabdata[j][0] and onset_time < bind_tabdata[min(j+1, bind_tabdata.size)][0]:
-                    tab_data =  bind_tabdata[j][1:]
+            for j in range(i, self.bind_tabdata.shape[0]):
+                if onset_time < self.bind_tabdata[0][0]:
+                    tab_data = self.bind_tabdata[0][1:]
+                    i = 0
+                    break
+                if onset_time>= self.bind_tabdata[j][0] and onset_time < self.bind_tabdata[min(j+1, self.bind_tabdata.size-1)][0]:
+                    tab_data =  self.bind_tabdata[j][1:]
                     i = j
                     break
-            time_n_tabs = [onset_time].append(tls.TabCorrection(tab_data, note_contain))
-            outputs.append([time_n_tabs])
-        outputs.append([[self.bind_tabdata.size[-1][0]]])#set a pause note at the end
-        ret = self._quantization(np.array(outputs))
+            tabs = tls.TabCorrection(tab_data, note_contain)
+            if tabs != []:
+                time_n_tabs = [onset_time] + np.array(tls.TabCorrection(tab_data, note_contain)).tolist()
+                print(time_n_tabs)
+                outputs.append(time_n_tabs)
+        print(outputs)
+        outputs.append([self.bind_tabdata[-1][0]])#set a pause note at the end
+        ret = self._quantization(np.array(outputs), 120)
         return ret    
 
     def _quantization(self, data, bpm, sign_upper =4, sign_lower =4, min_note_value = 8, bypass_first_section = True):
@@ -68,10 +81,12 @@ class AudioAid:
 
         #Quantize and remap data
         for i in range(data.shape[0]):
+            if data[i] is None:
+                continue
             if data[i][0]%quant_length <= quant_length/2:
-                data[i][0]=(data[i][0]//quant_length)*(1/min_note_value)
+                data[i][0]=(data[i][0]/1000.0//quant_length)*(1/min_note_value)
             else:
-                data[i][0]=(data[i][0]//quant_length + 1)*(1/min_note_value)
+                data[i][0]=(data[i][0]/1000.0//quant_length + 1)*(1/min_note_value)
         
         for i in range(data.shape[0]):
             if bypass_first_section:
@@ -172,19 +187,20 @@ class SlimTabManager:
 
     def check(self):
         curr_devices = self._getInputDevices()
-        if curr_devices[self.device['index']]['name'] == self.device['name']:
-            return True
-        else:
-            return False
+        status = False
+        for device in curr_devices:
+            if device['name'] == self.device['name']:
+                status = True
+        return status
     
     def calc(self, ar_data = None, tr_data = None):
         if ar_data == None:
             ar_data = self.record_ardata
         if tr_data == None:
             tr_data = self.record_trdata
-        audio_aid.bindAudio(ar_data)
-        audio_aid.bindTabData(tr_data)
-        return audio_aid.calcResult()
+        self.audio_aid.bindAudio(ar_data)
+        self.audio_aid.bindTabData(tr_data)
+        return self.audio_aid.calcResult()
 
 
     def record(self, filename = ''):
@@ -295,17 +311,19 @@ class SlimTabManager:
 
     def _tTabRecord(self):
         try:
-            tab_driver = driver.SliMTABDriver("/dev/tty.SLAB_USBtoUART")
+            tab_driver = driver.SliMTABDriver("192.168.100.1")
         except Exception as exception:
             logging.warning('\nFail to access Tab driver data: ' + str(exception))
+            tab_driver.close()
             self.b.wait()
             return
+        print('Tab in')
         record_tabs = []
         self.b.wait()
-        self.driver_check = tab_driver.check()
-        if not tab_driver.open() or not self.driver_check:
+        if tab_driver.check() == -1:
             logging.warning('Tab device open unsucceed')
             return 
+        tab_driver.open()
         tab_driver.reset()
         tab_driver.begin()
         i = 0 
@@ -318,6 +336,7 @@ class SlimTabManager:
             self.tabRT = ts
         self.record_trdata = np.array(record_tabs)
         tab_driver.end()
+        tab_driver.close()
 
     def _tRecordConsume(self):
         i = 0
@@ -332,7 +351,8 @@ class SlimTabManager:
     
     def _openRecordStream(self, device, sr = 44100, ):
         logging.info('Openning the stream for device: '+str(device['name']))
-        stream = sd.InputStream(samplerate = sr, blocksize = 4096, device = device['index'], channels = device['max_input_channels'], callback = self._callback)
+        #stream = sd.InputStream(samplerate = sr, blocksize = 4096, device = device['index'], channels = device['max_input_channels'], callback = self._callback)
+        stream = sd.InputStream(samplerate = sr, blocksize = 4096, device = device['index'], channels = 1, callback = self._callback)
         return stream
 
     def _getInputDevices(self):
@@ -375,6 +395,13 @@ if __name__ == '__main__':
 
             elif cmd == 'stop':
                 manager.stopRecord()
+                rlt = manager.calc()
+                print(rlt)
+                #for sec in rlt:
+                #    line = []
+                #    for r in  sec:
+                #        line.append(r)
+                    #print(line)
 
             elif cmd == 'save_current':
                 filename = manager.saveCurrentRecordData(name = arg[:-1])
@@ -407,5 +434,7 @@ if __name__ == '__main__':
                 print(aa._quantization(test_data, bpm, bypass_first_section = False))
             elif cmd == 'default_name':
                 print(manager.getDefaultDeviceName())
+            elif cmd == 'check':
+                manager.check()
             else:
                 print('Invalid input!!')    

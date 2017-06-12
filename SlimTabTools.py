@@ -14,7 +14,7 @@ def NoteDetection (audio, sr, thresh):
     for j in range(chroma_cqt.shape[0]):
         if chroma_cqt[j] >= chroma_cqt[max(0, j-1)] and chroma_cqt[j] >= chroma_cqt[min(chroma_cqt.shape[0]-1, j+1)]:
             if(chroma_cqt[j]>thresh) :
-                note_contain.append(note_name[j]+str(chroma_cqt[j]))
+                note_contain.append(j)
     return note_contain
 
 ##The tab input should be a size of 6 numpy array for six position
@@ -33,8 +33,8 @@ def TabCorrection(tabs, note_contain, open_tab =openTab):
                 closest_note = note_candi
                 min_delta = delta
         #Only restore tabs that is attacked
-        if closest_note != -1:
-            out_tabs.append([i, closest_note - open_tab[i]])
+        if closest_note - open_tab[i] > 0 and closest_note != -1:
+            out_tabs = out_tabs + [i+1] + [closest_note - open_tab[i]]
     return out_tabs
 
 def len2ValueSeparation(length, min_value = 32):
