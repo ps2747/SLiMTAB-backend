@@ -10,6 +10,7 @@ def TabRecgnize(position):
 def NoteDetection (audio, sr, thresh):
     chroma_cqt = np.average(librosa.feature.chroma_cqt(y = audio, hop_length=2048,  sr = sr), axis = 1)
     note_contain = []
+
     for j in range(chroma_cqt.shape[0]):
         if chroma_cqt[j] >= chroma_cqt[max(0, j-1)] and chroma_cqt[j] >= chroma_cqt[min(chroma_cqt.shape[0]-1, j+1)]:
             if(chroma_cqt[j]>thresh) :
@@ -23,6 +24,8 @@ def TabCorrection(tabs, note_contain, open_tab =openTab):
         note = (tabs[i] + open_tab[i])%12
         closest_note = -1
         min_delta = 12
+        if note_contain == None:
+            return 0
         for note_candi in note_contain:
             delta = abs(note_candi - note)
             #if delta >= 2 we can't consider it as a candidate
@@ -42,6 +45,5 @@ def len2ValueSeparation(length, min_value = 32):
         length = length%(1/(2**i))
         i +=1
     return ret
-        
 if __name__ == '__main__':
     print(len2ValueSeparation(0.375))

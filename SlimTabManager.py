@@ -55,11 +55,11 @@ class AudioAid:
             outputs.append([time_n_tabs])
         outputs.append([[self.bind_tabdata.size[-1][0]]])#set a pause note at the end
         ret = self._quantization(np.array(outputs))
-        return ret
+        return ret    
 
-    def _quantization(self, data, bpm, time_sign_upper =4, time_sign_lower =4, min_note_value = 8, bypass_first_section = True):
-        quant_length = (60/bpm)*(time_sign_lower/min_note_value)
-        section_length = time_sign_upper/time_sign_lower
+    def _quantization(self, data, bpm, sign_upper =4, sign_lower =4, min_note_value = 8, bypass_first_section = True):
+        quant_length = (60/bpm)*(sign_lower/min_note_value)
+        section_length = sign_upper/sign_lower
         outputs = []
         section = []
         section_start_time = 0
@@ -85,7 +85,7 @@ class AudioAid:
                 pause_value_num = tls.len2ValueSeparation(pause_len)
                 for idx, valuenum in enumerate(pause_value_num):
                     for j in range(valuenum):
-                        section.append([2**idx])
+                        section.append([2**idx, 0])
                         sum_note_len += 1/2**idx
             sec_start = False
             note_len = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
@@ -135,8 +135,7 @@ class AudioAid:
             
         if section != []:
             outputs.append(section)
-        return np.array(outputs)                
-
+        return np.array(outputs)          
 
 class SlimTabManager:
     def __init__(self,) :
@@ -170,7 +169,7 @@ class SlimTabManager:
             except Exception as exception:
                 self.device = None
                 logging.warning('Fail to open stream: ' + str(exception))
-        
+
     def check(self):
         curr_devices = self._getInputDevices()
         if curr_devices[self.device['index']]['name'] == self.device['name']:
