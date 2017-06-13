@@ -28,6 +28,16 @@ def NoteDetection (audio, sr, thresh):
 ##The tab input should be a size of 6 numpy array for six position
 def TabCorrection(tabs, note_contain, open_tab =openTab):
     out_tabs = []
+    press_num = 0
+    #Check if there is only one tab is press
+    for i in range(len(tabs)):
+        if tabs[i] != 0:
+            one_tab = [i, tabs[i]]
+            press_num +=1
+    
+    #If there only one tab is pressed, then don't need to use audio aid
+    if press_num == 1:
+        return np.array(one_tab)
     #print('In tabs : ' + str(note_name[tabs[0]+ open_tab[0]]) + ' '+ str(note_name[tabs[1]+ open_tab[1]]) + ' '+ str(note_name[tabs[2]+ open_tab[2]]) + ' '+ str(note_name[tabs[3]+ open_tab[3]]) + ' '+ str(note_name[tabs[4]+ open_tab[4]]) + ' '+ str(note_name[tabs[5]+ open_tab[5]]) + ' ')
     for i in range(len(tabs)):
         note = tabs[i] + open_tab[i]
