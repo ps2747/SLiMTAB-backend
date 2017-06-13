@@ -29,7 +29,7 @@ class AudioAid:
         self.bind_tabdata = tabdata
 
     #With corresponded audio data and tab data, use run to correct the tab data by using audio features
-    def calcResult(self, window_size = 2048, threshold = 0.8, samplerate = 44100):
+    def calcResult(self, window_size = 2048, threshold = 1.0e-4, samplerate = 44100):
         if self.bind_audio.size == 0 : 
             logging.warning('Binded audio data is(are) empty!!\n')
             return
@@ -49,6 +49,7 @@ class AudioAid:
         outputs = []
         for onset in onset_samples:
             note_contain = tls.NoteDetection(mono[onset: onset + window_size], samplerate, threshold)
+            #print(note_contain)
             onset_time = onset/samplerate *1000
             #Find the tabs where onset detected
             for j in range(i, self.bind_tabdata.shape[0]):
@@ -237,14 +238,38 @@ class SlimTabManager:
             self.tRC.join()      
         except Exception:
             return
+        self.record_ardata= self._monoToStereo(self.record_ardata)
         
     def saveCurrentRecordData(self, name = None):
         import tempfile
         if name is None or name == '' :
-            name = tempfile.mktemp(prefix='rec_',suffix='.wav', dir='')
-        with sf.SoundFile(name, mode='x', samplerate=self.samplerate, channels = self.device['max_input_channels']) as file:
+            name = tempfile.mktemp(prefix='rec_',suffix='', dir='')
+            tab_name = name +'.tab'
+        with sf.SoundFile(name + '.wav', mode='x', samplerate=self.samplerate, channels = self.device['max_input_channels']) as file:
             file.write(np.reshape(self.record_ardata, (-1, 2)))
+        tab_file = open(tab_name, 'w')
+        for tab in self.record_trdata:
+            tab_file.write('%s\n' % tab)
+
         return name
+    
+    def loadRecordData(self, name = None):
+        try:
+            self.record_ardata, sr = librosa.load(name + '.wav', sr = self.samplerate)
+        except Exception:
+            print('Fail to load audio data')
+            return 
+        try:
+            with open(name + '.tab') as file:
+                tabs = []
+                for line in file:
+                    line = line[1:-2].split(' ')
+                    line = [int(l) for l in line if l != '']
+                    tabs.append(line)
+                self.record_trdata = np.array(tabs)
+        except Exception:
+            print('Fail to load tab data')
+            return 
 
     def close(self):
         self.record_status = -1
@@ -351,8 +376,8 @@ class SlimTabManager:
     
     def _openRecordStream(self, device, sr = 44100, ):
         logging.info('Openning the stream for device: '+str(device['name']))
-        #stream = sd.InputStream(samplerate = sr, blocksize = 4096, device = device['index'], channels = device['max_input_channels'], callback = self._callback)
-        stream = sd.InputStream(samplerate = sr, blocksize = 4096, device = device['index'], channels = 1, callback = self._callback)
+        stream = sd.InputStream(samplerate = sr, blocksize = 4096, device = device['index'], channels = device['max_input_channels'], callback = self._callback)
+        #stream = sd.InputStream(samplerate = sr, blocksize = 4096, device = device['index'], channels = 1, callback = self._callback)
         return stream
 
     def _getInputDevices(self):
@@ -376,6 +401,12 @@ class SlimTabManager:
                 if default_input_device is None or device['index'] != default_input_device['index']:
                     input_devices += [device]
         return input_devices
+    
+    def _monoToStereo(self, audio):
+        for i in range(audio.shape[0]):
+            audio[i][0]=audio[i][1]
+        return audio
+
 
 if __name__ == '__main__':
     import time
@@ -402,6 +433,9 @@ if __name__ == '__main__':
                 #    for r in  sec:
                 #        line.append(r)
                     #print(line)
+            elif cmd == 'calc':
+                rlt = manager.calc()
+                print(rlt)
 
             elif cmd == 'save_current':
                 filename = manager.saveCurrentRecordData(name = arg[:-1])
@@ -436,5 +470,7 @@ if __name__ == '__main__':
                 print(manager.getDefaultDeviceName())
             elif cmd == 'check':
                 manager.check()
+            elif cmd == 'load':
+                manager.loadRecordData('rec_hpv88qn3')
             else:
                 print('Invalid input!!')    
