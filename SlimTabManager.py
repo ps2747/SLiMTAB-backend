@@ -77,7 +77,7 @@ class AudioAid:
             time_n_tabs = [onset_time] + tabs.tolist()
             outputs.append(time_n_tabs)
         outputs.append([self.bind_tabdata[-1][0]])#set a pause note at the end
-        ret = self._quantization(np.array(outputs))
+        ret = self._quantization(np.array(outputs)).tolist()
         return ret    
 
     def _quantization(self, data):
@@ -206,7 +206,7 @@ class SlimTabManager:
         curr_devices = self._getInputDevices()
         status = False
         for device in curr_devices:
-            if device['name'] == self.device['name']:
+            if self.device != None and device['name'] == self.device['name']:
                 status = True
         return status
     
@@ -452,6 +452,7 @@ if __name__ == '__main__':
                     #print(line)
             elif cmd == 'calc':
                 rlt = manager.calc()
+                print(type(rlt))
                 print(rlt)
 
             elif cmd == 'save_current':
