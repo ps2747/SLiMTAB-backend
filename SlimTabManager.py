@@ -69,7 +69,7 @@ class AudioAid:
                     tab_data = self.bind_tabdata[0][1:]
                     i = 0
                     break
-                if onset_time>= self.bind_tabdata[j][0] and onset_time < self.bind_tabdata[min(j+1, self.bind_tabdata.size-1)][0]:
+                if onset_time>= self.bind_tabdata[j][0] and onset_time < self.bind_tabdata[min(j+1, self.bind_tabdata.shape[0]-1)][0]:
                     tab_data =  self.bind_tabdata[j][1:]
                     i = j
                     break
@@ -104,7 +104,6 @@ class AudioAid:
             if data[i][0] == data[min(data.shape[0]-1, i+1)][0]:
                 data = np.delete(data, i)
             i += 1
-        print(data)
         for i in range(data.shape[0]):
             if self.bypass_first_section:
                 if data[i][0] < 1:
@@ -359,7 +358,6 @@ class SlimTabManager:
             tab_driver.close()
             self.b.wait()
             return
-        print('Tab in')
         record_tabs = []
         self.b.wait()
         if tab_driver.check() == -1:
