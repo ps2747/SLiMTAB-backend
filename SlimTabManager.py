@@ -17,8 +17,13 @@ import SlimTabDriver as driver
 
 class AudioAid:
     #Notice that audio recorder and tab driver have different sample rate, they should compute in different time domain
-    def __init__(self, samplerate=44100) :
+    def __init__(self, samplerate=44100, bpm = 120, sign_upper = 4, sign_lower = 4, min_note_value = 8, bypass_first_section = True) :
         self.samplerate = samplerate
+        self.bpm = bpm
+        self.sign_upper = sign_upper
+        self.sign_lower = sign_lower
+        self.min_note_value = min_note_value
+        self.bypass_first_section = bypass_first_section
         self.bind_audio = np.array([])
         self.bind_tabdata = np.array([])
 
@@ -27,9 +32,16 @@ class AudioAid:
     
     def bindTabData(self, tabdata):
         self.bind_tabdata = tabdata
+    
+    def setArgs(self, bpm = 120, sign_upper = 4, sign_lower = 4, min_note_value = 8, bypass_first_section = True):
+        self.bpm = bpm
+        self.sign_upper = sign_upper
+        self.sign_lower = sign_lower
+        self.min_note_value = min_note_value
+        self.bypass_first_section = bypass_first_section
 
     #With corresponded audio data and tab data, use run to correct the tab data by using audio features
-    def calcResult(self, window_size = 2048, threshold = 1.0e-4, samplerate = 44100):
+    def calcResult(self, window_size = 2048, threshold = 1.0e-2, samplerate = 44100):
         if self.bind_audio.size == 0 : 
             logging.warning('Binded audio data is(are) empty!!\n')
             return
@@ -62,18 +74,15 @@ class AudioAid:
                     i = j
                     break
             tabs = tls.TabCorrection(tab_data, note_contain)
-            if tabs != []:
-                time_n_tabs = [onset_time] + np.array(tls.TabCorrection(tab_data, note_contain)).tolist()
-                print(time_n_tabs)
-                outputs.append(time_n_tabs)
-        print(outputs)
+            time_n_tabs = [onset_time] + tabs.tolist()
+            outputs.append(time_n_tabs)
         outputs.append([self.bind_tabdata[-1][0]])#set a pause note at the end
-        ret = self._quantization(np.array(outputs), 120)
+        ret = self._quantization(np.array(outputs))
         return ret    
 
-    def _quantization(self, data, bpm, sign_upper =4, sign_lower =4, min_note_value = 8, bypass_first_section = True):
-        quant_length = (60/bpm)*(sign_lower/min_note_value)
-        section_length = sign_upper/sign_lower
+    def _quantization(self, data):
+        quant_length = (60/self.bpm)*(self.sign_lower/self.min_note_value)
+        section_length = self.sign_upper/self.sign_lower
         outputs = []
         section = []
         section_start_time = 0
@@ -85,16 +94,22 @@ class AudioAid:
             if data[i] is None:
                 continue
             if data[i][0]%quant_length <= quant_length/2:
-                data[i][0]=(data[i][0]/1000.0//quant_length)*(1/min_note_value)
+                data[i][0]=(data[i][0]/1000.0//quant_length)*(1/self.min_note_value)
             else:
-                data[i][0]=(data[i][0]/1000.0//quant_length + 1)*(1/min_note_value)
-        
-        for i in range(data.shape[0]):
-            if bypass_first_section:
-                if data[i][0] < 1:
-                    continue
-                section_start_time = 1
+                data[i][0]=(data[i][0]/1000.0//quant_length + 1)*(1/self.min_note_value)
 
+        #Delet item that has the same time as the latter item  
+        i = 0
+        while i < data.shape[0]:    
+            if data[i][0] == data[min(data.shape[0]-1, i+1)][0]:
+                data = np.delete(data, i)
+            i += 1
+        print(data)
+        for i in range(data.shape[0]):
+            if self.bypass_first_section:
+                if data[i][0] < 1:
+                    section_start_time = 1
+                    continue
             #Deal with section start with no audio inputs
             if data[i][0] > section_start_time and sec_start:
                 pause_len = (data[i][0] - section_start_time)
@@ -106,6 +121,7 @@ class AudioAid:
             sec_start = False
             note_len = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
             if note_len == 0:
+                sec_start = False
                 continue
             
             if sum_note_len + note_len <= section_length:
@@ -194,13 +210,14 @@ class SlimTabManager:
                 status = True
         return status
     
-    def calc(self, ar_data = None, tr_data = None):
+    def calc(self, ar_data = None, tr_data = None, bpm = 120, sign_upper = 4, sign_lower = 4, min_note_value = 8, bypass_first_section = True):
         if ar_data == None:
             ar_data = self.record_ardata
         if tr_data == None:
             tr_data = self.record_trdata
         self.audio_aid.bindAudio(ar_data)
         self.audio_aid.bindTabData(tr_data)
+        self.audio_aid.setArgs(bpm, sign_upper, sign_lower, min_note_value, bypass_first_section)
         return self.audio_aid.calcResult()
 
 

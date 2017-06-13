@@ -16,16 +16,19 @@ def TabRecgnize(position):
 def NoteDetection (audio, sr, thresh):
     cqt = np.average(librosa.core.cqt(y = audio, hop_length=2048,  sr = sr), axis = 1)
     note_contain = []
+    p_note_contain = []
     for j in range(cqt.shape[0]):
         if cqt[j] >= cqt[max(0, j-1)] and cqt[j] >= cqt[min(cqt.shape[0]-1, j+1)]:
             if(cqt[j]>thresh) :
                 note_contain.append(j)
-
+                p_note_contain.append(note_name[j])
+    #print(p_note_contain)
     return note_contain
 
 ##The tab input should be a size of 6 numpy array for six position
 def TabCorrection(tabs, note_contain, open_tab =openTab):
     out_tabs = []
+    #print('In tabs : ' + str(note_name[tabs[0]+ open_tab[0]]) + ' '+ str(note_name[tabs[1]+ open_tab[1]]) + ' '+ str(note_name[tabs[2]+ open_tab[2]]) + ' '+ str(note_name[tabs[3]+ open_tab[3]]) + ' '+ str(note_name[tabs[4]+ open_tab[4]]) + ' '+ str(note_name[tabs[5]+ open_tab[5]]) + ' ')
     for i in range(len(tabs)):
         note = tabs[i] + open_tab[i]
         closest_note = -1
@@ -43,11 +46,11 @@ def TabCorrection(tabs, note_contain, open_tab =openTab):
                 min_index = i
         #Only restore tabs that is attacked
         if closest_note - open_tab[i] > 0 and closest_note != -1:
-            note_contain[min_index] = 100 
+            note_contain[min_index] = 100 #Make the used note to a very large number
             out_tabs = [i+1] + [closest_note - open_tab[i]] + out_tabs
-        if out_tabs == []:
-            out_tabs = [0]
-    return out_tabs
+    if out_tabs == []:
+        out_tabs = [0]
+    return np.array(out_tabs)
 
 def len2ValueSeparation(length, min_value = 32):
     ret = []
