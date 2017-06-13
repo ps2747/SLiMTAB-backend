@@ -32,7 +32,7 @@ def TabCorrection(tabs, note_contain, open_tab =openTab):
     #Check if there is only one tab is press
     for i in range(len(tabs)):
         if tabs[i] != 0:
-            one_tab = [i, tabs[i]]
+            one_tab = [i+1, tabs[i]]
             press_num +=1
     
     #If there only one tab is pressed, then don't need to use audio aid
