@@ -83,11 +83,7 @@ class AudioAid:
     def _quantization(self, data):
         quant_length = (60/self.bpm)*(self.sign_lower/self.min_note_value)
         section_length = self.sign_upper/self.sign_lower
-        outputs = []
-        section = []
         section_start_time = 0
-        sum_note_len = 0
-        sec_start = True
 
         #Quantize and remap data
         for i in range(data.shape[0]):
@@ -98,75 +94,53 @@ class AudioAid:
             else:
                 data[i][0]=(data[i][0]/1000.0//quant_length + 1)*(1/self.min_note_value)
 
-        #Delet item that has the same time as the latter item  
-        i = 0
-        while i < data.shape[0]:    
-            if data[i][0] == data[min(data.shape[0]-1, i+1)][0]:
-                data = np.delete(data, i)
-            i += 1
+        #If bypass first section is True, delete all note which note time below 1
+        if self.bypass_first_section:
+            section_start_time = 1
+            i = 0
+            while i < data.shape[0] and  data[i][0] <= 1:
+                data = np.delete(data, i, 0)
+                i+= 1
+        #To fill the gap with pause between start time and the first data 
+        if data[0][0] > section_start_time:
+            data = np.array([[section_start_time, 0]] + data.tolist())
+        
         for i in range(data.shape[0]):
-            if self.bypass_first_section:
-                if data[i][0] < 1:
-                    section_start_time = 1
-                    continue
-            #Deal with section start with no audio inputs
-            if data[i][0] > section_start_time and sec_start:
-                pause_len = (data[i][0] - section_start_time)
-                pause_value_num = tls.len2ValueSeparation(pause_len)
-                for idx, valuenum in enumerate(pause_value_num):
-                    for j in range(valuenum):
-                        section.append([2**idx, 0])
-                        sum_note_len += 1/2**idx
-            sec_start = False
-            note_len = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
-            if note_len == 0:
-                sec_start = False
-                continue
-            
-            if sum_note_len + note_len <= section_length:
-                note_value_num = tls.len2ValueSeparation(note_len)
-                for idx, valuenum in enumerate(note_value_num):          
-                    for j in range(valuenum):
-                        section.append([2**idx] + np.array(data[i][1:]).tolist())
-                sum_note_len += note_len
-
-                if sum_note_len == section_length:
+            data[i][0] = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
+        
+        #Delet item that has the same time as the latter item  
+        for i in range(data.shape[0]):
+            if data[i][0] == 0:
+                data = np.delete(data, i, 0)
+        
+        outputs = []
+        section = []
+        sum_len = 0
+        print(data)
+        #Map data to sheet music template
+        for note in data:
+            note_len = note[0]
+            print(note_len)
+            print(sum_len)
+            while note_len > 0:
+                if sum_len + note_len >= 1:
+                    fill_note = 1 - sum_len
+                    section.append([fill_note] + note[1:])
                     outputs.append(section)
                     section = []
-                    section_start_time += 1
-                    sum_note_len = 0
-                    sec_start = True
-            
-            else:#When section is full
-                #Fill the section with the notes
-                section_start_time += 1
-                fill_note_len = section_length - sum_note_len
-                fill_value_num = tls.len2ValueSeparation(fill_note_len)
-                for idx, valuenum in enumerate(fill_value_num):          
-                    for j in range(valuenum):
-                        section.append([2**idx] + np.array(data[i][1:]).tolist())
-                outputs.append(section)
-                section = []
-                sum_note_len = 0 
-                sec_start = True
-                rest_note_len = note_len - fill_note_len
-                rest_value_num = tls.len2ValueSeparation(rest_note_len)
-                for idx, valuenum in enumerate(rest_value_num):          
-                    for j in range(valuenum):
-                        section.append([2**idx] + np.array(data[i][1:]).tolist())
-                        if idx == 0:
-                            section_start_time += 1
-                            sum_note_len = 0
-                            sec_start = True
-                            outputs.append(section)
-                            section = []
-                        else:
-                            sum_note_len += 1/2**idx
-                            sec_start = False
-            
+                    note_len -= fill_note
+                    sum_len = 0
+                else:
+                    section.append([note_len] + note[1:])
+                    sum_len += note_len
+                    note_len = 0
+                    
+            print(section)
+        
         if section != []:
             outputs.append(section)
-        return np.array(outputs)          
+        
+        return outputs
 
 class SlimTabManager:
     def __init__(self,) :
@@ -475,13 +449,14 @@ if __name__ == '__main__':
                 manager.printTime()
             elif cmd == 'quant':
                 aa = AudioAid()
-                test_data = np.array([[1.03322, 1, 1], [4.324234234, 1, 2], [5.2341234, 1, 3], [6.2341341234, 1, 4], [6.734125135, 1, 5], [7.12341234124, 1, 6]])
+                test_data = np.array([[1033.22, 1, 1], [4324.234234, 1, 2], [5234.1234, 1, 3], [6234.1341234, 1, 4], [6734.125135, 1, 5], [7123.41234124, 1, 6]])
                 #test_data = np.array([[0.0122, 1, 0, 0, 0, 0, 0], [1.03322, 1, 0, 0, 0, 0, 0], [1.543423, 2, 0, 0, 0, 0, 0], [1.7523423, 3, 0, 0, 0, 0, 0], [2.15435, -1, -1, -1, -1, -1, -1], [2.362345, -1, -1, -1, -1, -1, -1]])
                 if len(arg) == 0:
                     arg = 120
                 bpm = int(arg) 
                 print('bpm : ' + str(bpm))
-                print(aa._quantization(test_data, bpm, bypass_first_section = False))
+                aa.setArgs(bpm = bpm)
+                print(aa.quantization(test_data))
             elif cmd == 'default_name':
                 print(manager.getDefaultDeviceName())
             elif cmd == 'check':

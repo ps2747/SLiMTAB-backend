@@ -34,7 +34,6 @@ def TabCorrection(tabs, note_contain, open_tab =openTab):
         if tabs[i] != 0:
             one_tab = [i+1, tabs[i]]
             press_num +=1
-    
     #If there only one tab is pressed, then don't need to use audio aid
     if press_num == 1:
         return np.array(one_tab)
