@@ -61,13 +61,21 @@ def TabCorrection(tabs, note_contain, open_tab =openTab):
         out_tabs = [0]
     return np.array(out_tabs)
 
-def len2ValueSeparation(length, min_value = 32):
+def valueSeparation(length, tab, min_value = 32):
     ret = []
     i = 0
+    count = 0
     while length >= 1/32:
-        ret.append(int(length//(1/(2**i))))
+        num = int(length//(1/(2**i)))
+        count += num
+        for j in range(num):
+            ret.append([2**i] + tab)
         length = length%(1/(2**i))
         i +=1
+    if num > 1:
+        ret = [ret]
+        print(ret)
     return ret
+
 if __name__ == '__main__':
-    print(len2ValueSeparation(0.375))
+    print(valueSeparation(0.375, [1, 0, 2, 4]))

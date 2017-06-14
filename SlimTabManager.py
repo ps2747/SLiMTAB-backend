@@ -77,7 +77,7 @@ class AudioAid:
             time_n_tabs = [onset_time] + tabs.tolist()
             outputs.append(time_n_tabs)
         outputs.append([self.bind_tabdata[-1][0]])#set a pause note at the end
-        ret = self._quantization(np.array(outputs)).tolist()
+        ret = self._quantization(np.array(outputs))
         return ret    
 
     def _quantization(self, data):
@@ -109,38 +109,38 @@ class AudioAid:
             data[i][0] = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
         
         #Delet item that has the same time as the latter item  
-        for i in range(data.shape[0]):
+        while i < data.shape[0]:
             if data[i][0] == 0:
                 data = np.delete(data, i, 0)
+            else:
+                i += 1
         
-        outputs = []
+        bars = []
         bar = []
         sum_len = 0
-        print(data)
         #Map data to sheet music template
         for note in data:
             note_len = note[0]
-            print(note_len)
-            print(sum_len)
             while note_len > 0:
                 if sum_len + note_len >= 1:
                     fill_note = 1 - sum_len
-                    bar.append([fill_note] + note[1:])
-                    outputs.append(bar)
+                    separated_note = tls.valueSeparation(fill_note, note[1:])
+                    bar = bar + separated_note
+                    #bar.append([fill_note] + note[1:])
+                    bars.append(bar)
                     bar = []
                     note_len -= fill_note
                     sum_len = 0
                 else:
-                    bar.append([note_len] + note[1:])
+                    separated_note = tls.valueSeparation(note_len, note[1:])
+                    bar = bar + separated_note
+                    #bar.append([note_len] + note[1:])
                     sum_len += note_len
                     note_len = 0
-                    
-            print(bar)
         
         if bar != []:
-            outputs.append(bar)
-        
-        return outputs
+            bars.append(bar)
+        return bars
 
 class SlimTabManager:
     def __init__(self,) :
@@ -424,7 +424,6 @@ if __name__ == '__main__':
                     #print(line)
             elif cmd == 'calc':
                 rlt = manager.calc()
-                print(type(rlt))
                 print(rlt)
 
             elif cmd == 'save_current':
@@ -456,7 +455,7 @@ if __name__ == '__main__':
                 bpm = int(arg) 
                 print('bpm : ' + str(bpm))
                 aa.setArgs(bpm = bpm)
-                print(aa.quantization(test_data))
+                print(aa._quantization(test_data))
             elif cmd == 'default_name':
                 print(manager.getDefaultDeviceName())
             elif cmd == 'check':
