@@ -17,13 +17,13 @@ import SlimTabDriver as driver
 
 class AudioAid:
     #Notice that audio recorder and tab driver have different sample rate, they should compute in different time domain
-    def __init__(self, samplerate=44100, bpm = 120, sign_upper = 4, sign_lower = 4, min_note_value = 8, bypass_first_section = True) :
+    def __init__(self, samplerate=44100, bpm = 120, sign_upper = 4, sign_lower = 4, min_note_value = 8, bypass_first_bar = True) :
         self.samplerate = samplerate
         self.bpm = bpm
         self.sign_upper = sign_upper
         self.sign_lower = sign_lower
         self.min_note_value = min_note_value
-        self.bypass_first_section = bypass_first_section
+        self.bypass_first_bar = bypass_first_bar
         self.bind_audio = np.array([])
         self.bind_tabdata = np.array([])
 
@@ -33,12 +33,12 @@ class AudioAid:
     def bindTabData(self, tabdata):
         self.bind_tabdata = tabdata
     
-    def setArgs(self, bpm = 120, sign_upper = 4, sign_lower = 4, min_note_value = 8, bypass_first_section = True):
+    def setArgs(self, bpm = 120, sign_upper = 4, sign_lower = 4, min_note_value = 8, bypass_first_bar = True):
         self.bpm = bpm
         self.sign_upper = sign_upper
         self.sign_lower = sign_lower
         self.min_note_value = min_note_value
-        self.bypass_first_section = bypass_first_section
+        self.bypass_first_bar = bypass_first_bar
 
     #With corresponded audio data and tab data, use run to correct the tab data by using audio features
     def calcResult(self, window_size = 2048, threshold = 1.0e-2, samplerate = 44100):
@@ -82,8 +82,8 @@ class AudioAid:
 
     def _quantization(self, data):
         quant_length = (60/self.bpm)*(self.sign_lower/self.min_note_value)
-        section_length = self.sign_upper/self.sign_lower
-        section_start_time = 0
+        bar_length = self.sign_upper/self.sign_lower
+        bar_start_time = 0
 
         #Quantize and remap data
         for i in range(data.shape[0]):
@@ -94,16 +94,16 @@ class AudioAid:
             else:
                 data[i][0]=(data[i][0]/1000.0//quant_length + 1)*(1/self.min_note_value)
 
-        #If bypass first section is True, delete all note which note time below 1
-        if self.bypass_first_section:
-            section_start_time = 1
+        #If bypass first bar is True, delete all note which note time below 1
+        if self.bypass_first_bar:
+            bar_start_time = 1
             i = 0
             while i < data.shape[0] and  data[i][0] <= 1:
                 data = np.delete(data, i, 0)
                 i+= 1
         #To fill the gap with pause between start time and the first data 
-        if data[0][0] > section_start_time:
-            data = np.array([[section_start_time, 0]] + data.tolist())
+        if data[0][0] > bar_start_time:
+            data = np.array([[bar_start_time, 0]] + data.tolist())
         
         for i in range(data.shape[0]):
             data[i][0] = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
@@ -114,7 +114,7 @@ class AudioAid:
                 data = np.delete(data, i, 0)
         
         outputs = []
-        section = []
+        bar = []
         sum_len = 0
         print(data)
         #Map data to sheet music template
@@ -125,20 +125,20 @@ class AudioAid:
             while note_len > 0:
                 if sum_len + note_len >= 1:
                     fill_note = 1 - sum_len
-                    section.append([fill_note] + note[1:])
-                    outputs.append(section)
-                    section = []
+                    bar.append([fill_note] + note[1:])
+                    outputs.append(bar)
+                    bar = []
                     note_len -= fill_note
                     sum_len = 0
                 else:
-                    section.append([note_len] + note[1:])
+                    bar.append([note_len] + note[1:])
                     sum_len += note_len
                     note_len = 0
                     
-            print(section)
+            print(bar)
         
-        if section != []:
-            outputs.append(section)
+        if bar != []:
+            outputs.append(bar)
         
         return outputs
 
@@ -183,14 +183,14 @@ class SlimTabManager:
                 status = True
         return status
     
-    def calc(self, ar_data = None, tr_data = None, bpm = 120, sign_upper = 4, sign_lower = 4, min_note_value = 8, bypass_first_section = True):
+    def calc(self, ar_data = None, tr_data = None, bpm = 120, sign_upper = 4, sign_lower = 4, min_note_value = 8, bypass_first_bar = True):
         if ar_data == None:
             ar_data = self.record_ardata
         if tr_data == None:
             tr_data = self.record_trdata
         self.audio_aid.bindAudio(ar_data)
         self.audio_aid.bindTabData(tr_data)
-        self.audio_aid.setArgs(bpm, sign_upper, sign_lower, min_note_value, bypass_first_section)
+        self.audio_aid.setArgs(bpm, sign_upper, sign_lower, min_note_value, bypass_first_bar)
         return self.audio_aid.calcResult()
 
 
