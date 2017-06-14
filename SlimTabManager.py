@@ -43,10 +43,10 @@ class AudioAid:
     #With corresponded audio data and tab data, use run to correct the tab data by using audio features
     def calcResult(self, window_size = 2048, threshold = 1.0e-2, samplerate = 44100):
         if self.bind_audio.size == 0 : 
-            logging.warning('Binded audio data is(are) empty!!\n')
+            logging.warning('Binded audio data is empty!!\n')
             return
         if self.bind_tabdata.size == 0:
-            logging.warning('Binded tab data is(are) empty!!\n')
+            logging.warning('Binded tab data is empty!!\n')
             return
         #Onset detection, label all the onsets and extract the note and tabs at that moment
         mono = librosa.core.to_mono(self.bind_audio.T)
@@ -160,6 +160,7 @@ class SlimTabManager:
         self.sync_stop_key = False
         self.input_devices = self._getInputDevices()
         self.i = 0
+        self.tab_driver = driver.SliMTABDriver("192.168.100.1")
 
         #For UI audio record wave randering
         self.this_wavelet=np.array([])
@@ -176,12 +177,22 @@ class SlimTabManager:
                 logging.warning('Fail to open stream: ' + str(exception))
 
     def check(self):
+        if self.tab_driver.check() == -1:
+            logging.warning('Tab device open unsucceed')
+            tab_status = False
+        else:
+            tab_status = True
+            
         curr_devices = self._getInputDevices()
-        status = False
+        record_status = False
         for device in curr_devices:
             if self.device != None and device['name'] == self.device['name']:
-                status = True
-        return status
+                record_status = True
+        
+        if tab_status and record_status:
+            return True
+        else:
+            return False
     
     def calc(self, ar_data = None, tr_data = None, bpm = 120, sign_upper = 4, sign_lower = 4, min_note_value = 8, bypass_first_bar = True):
         if ar_data == None:
@@ -203,8 +214,8 @@ class SlimTabManager:
         self.tTR = threading.Thread(target = self._tTabRecord)
         self.tRC = threading.Thread(target = self._tRecordConsume)
         self.start_time = time.time()
-        self.tTR.start()
         if self.check() :
+            self.tTR.start()
             self.record_status = 1
             if self.input_stream.active:
                 self.input_stream.stop()
@@ -325,32 +336,25 @@ class SlimTabManager:
         self.q.put(indata.copy())
 
     def _tTabRecord(self):
-        try:
-            tab_driver = driver.SliMTABDriver("192.168.100.1")
-        except Exception as exception:
-            logging.warning('\nFail to access Tab driver data: ' + str(exception))
-            tab_driver.close()
-            self.b.wait()
-            return
-        record_tabs = []
-        self.b.wait()
-        if tab_driver.check() == -1:
+        if self.tab_driver.check() == -1:
             logging.warning('Tab device open unsucceed')
             return 
-        tab_driver.open()
-        tab_driver.reset()
-        tab_driver.begin()
+        self.b.wait()
+        record_tabs = []
+        self.tab_driver.open()
+        self.tab_driver.reset()
+        self.tab_driver.begin()
         i = 0 
         while not self.stop_key:
             i += 1
-            ts, n, tab = tab_driver.read()
+            ts, n, tab = self.tab_driver.read()
             if self.stop_key :
                 break
             record_tabs.append([ts] + [t for t in tab])
             self.tabRT = ts
         self.record_trdata = np.array(record_tabs)
-        tab_driver.end()
-        tab_driver.close()
+        self.tab_driver.end()
+        self.tab_driver.close()
 
     def _tRecordConsume(self):
         i = 0
