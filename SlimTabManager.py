@@ -202,7 +202,10 @@ class SlimTabManager:
         self.audio_aid.bindAudio(ar_data)
         self.audio_aid.bindTabData(tr_data)
         self.audio_aid.setArgs(bpm, sign_upper, sign_lower, min_note_value, bypass_first_bar)
-        return self.audio_aid.calcResult()
+        ret = self.audio_aid.calcResult()
+        if ret is None:
+            ret = []
+        return ret
 
 
     def record(self, filename = ''):
@@ -226,7 +229,7 @@ class SlimTabManager:
             self.record_status = 0
         
     def stopRecord(self):
-        if self.record_status == 0:
+        if self.record_status == -1 or self.record_status == 0:
             return 
         self.record_status = 0
         self.stop_time = time.time()

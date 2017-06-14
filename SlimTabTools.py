@@ -38,27 +38,31 @@ def TabCorrection(tabs, note_contain, open_tab =openTab):
     if press_num == 1:
         return np.array(one_tab)
     #print('In tabs : ' + str(note_name[tabs[0]+ open_tab[0]]) + ' '+ str(note_name[tabs[1]+ open_tab[1]]) + ' '+ str(note_name[tabs[2]+ open_tab[2]]) + ' '+ str(note_name[tabs[3]+ open_tab[3]]) + ' '+ str(note_name[tabs[4]+ open_tab[4]]) + ' '+ str(note_name[tabs[5]+ open_tab[5]]) + ' ')
-    for i in range(len(tabs)):
+    for i in reversed(range(len(tabs))):
         note = tabs[i] + open_tab[i]
         closest_note = -1
         min_delta = 12
         if note_contain == None:
             return 0
-        for i in reversed(range(len(note_contain))):
-            delta = abs(note_contain[i] - note)
-
-            #print('Tab in : ' +str(note_name[note]) + ' delta :' + str(delta))
+        for j in range(len(note_contain)):
+            delta = abs(note_contain[j] - note)
             #if delta >= 2 we can't consider it as a candidate
             if delta < min_delta and delta < 3:
-                closest_note = note_contain[i]
+                closest_note = note_contain[j]
                 min_delta = delta
-                min_index = i
+                min_index = j
         #Only restore tabs that is attacked
         if closest_note - open_tab[i] > 0 and closest_note != -1:
             note_contain[min_index] = 100 #Make the used note to a very large number
             out_tabs = [i+1] + [closest_note - open_tab[i]] + out_tabs
     if out_tabs == []:
-        out_tabs = [0]
+        for i in reversed(range(len(tabs))):
+            for j in range(len(note_contain)):
+                delta = abs(note_contain[j] - (tabs[i] + open_tab[i]))
+                if delta<4 and (note_contain[j] - open_tab[i]) > 0:
+                    out_tabs = [tabs[i]] + out_tabs
+        if out_tabs == []:
+            out_tabs = [0]
     return np.array(out_tabs)
 
 def valueSeparation(length, tab, min_value = 32):
