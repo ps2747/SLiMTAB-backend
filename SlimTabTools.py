@@ -72,8 +72,10 @@ def valueSeparation(length, tab, min_value = 32):
             ret.append([2**i] + tab)
         length = length%(1/(2**i))
         i +=1
-    if num > 1:
-        ret = [ret]
+    if count > 1:
+        for i in range(len(ret)-1):
+            ret[i].append('c')
+        ret[-1].append('e')
     return ret
 
 if __name__ == '__main__':
