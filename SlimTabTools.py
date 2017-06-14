@@ -74,7 +74,6 @@ def valueSeparation(length, tab, min_value = 32):
         i +=1
     if num > 1:
         ret = [ret]
-        print(ret)
     return ret
 
 if __name__ == '__main__':
