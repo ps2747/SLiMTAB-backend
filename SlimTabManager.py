@@ -82,10 +82,9 @@ class AudioAid:
         return ret    
 
     def _quantization(self, data):
-        quant_length = (60/self.bpm)*(self.sign_lower/self.min_note_value)
+        quant_length = (60/self.bpm)*(4/self.min_note_value)
         bar_length = self.sign_upper/self.sign_lower
         bar_start_time = 0
-
         #Quantize and remap data
         for i in range(data.shape[0]):
             if data[i] is None:
@@ -97,15 +96,16 @@ class AudioAid:
 
         #If bypass first bar is True, delete all note which note time below 1
         if self.bypass_first_bar:
-            bar_start_time = 1
+            bar_start_time = bar_length
             i = 0
-            while i < data.shape[0] and  data[i][0] <= 1:
+            while i < data.shape[0] and  data[i][0] <= bar_start_time:
                 data = np.delete(data, i, 0)
                 i+= 1
         #To fill the gap with pause between start time and the first data 
         if data[0][0] > bar_start_time:
             data = np.array([[bar_start_time, 0]] + data.tolist())
         
+        #Change the data from start time to note length
         for i in range(data.shape[0]):
             data[i][0] = data[min(data.shape[0]-1, i+1)][0] - data[i][0]
         
@@ -123,8 +123,8 @@ class AudioAid:
         for note in data:
             note_len = note[0]
             while note_len > 0:
-                if sum_len + note_len >= 1:
-                    fill_note = 1 - sum_len
+                if sum_len + note_len >= bar_length:
+                    fill_note = bar_length - sum_len
                     separated_note = tls.valueSeparation(fill_note, note[1:])
                     bar = bar + separated_note
                     bars.append(bar)
@@ -425,7 +425,7 @@ if __name__ == '__main__':
                 rlt = manager.calc()
                 print(rlt)
             elif cmd == 'calc':
-                rlt = manager.calc()
+                rlt = manager.calc(sign_upper = 11, sign_lower = 8)
                 print(rlt)
 
             elif cmd == 'save_current':
