@@ -224,11 +224,11 @@ class SlimTabManager:
             if self.input_stream.active:
                 self.input_stream.stop()
             self.b.wait()
-            print('click')
             self.input_stream.start()
             self.tRC.start()
         else:
             self.record_status = 0
+        
         
     def stopRecord(self):
         if self.record_status == -1 or self.record_status == 0:
@@ -251,6 +251,8 @@ class SlimTabManager:
         if name is None or name == '' :
             name = tempfile.mktemp(prefix='rec_',suffix='', dir='')
             tab_name = name +'.tab'
+        else:
+            tab_name = name + '.tab'
         with sf.SoundFile(name + '.wav', mode='x', samplerate=self.samplerate, channels = self.device['max_input_channels']) as file:
             file.write(np.reshape(self.record_ardata, (-1, 2)))
         tab_file = open(tab_name, 'w')
@@ -422,7 +424,7 @@ if __name__ == '__main__':
 
             elif cmd == 'stop':
                 manager.stopRecord()
-                rlt = manager.calc()
+                rlt = manager.calc(sign_upper = 11, sign_lower = 8)
                 print(rlt)
             elif cmd == 'calc':
                 rlt = manager.calc(sign_upper = 11, sign_lower = 8)
