@@ -41,7 +41,7 @@ class AudioAid:
         self.bypass_first_bar = bypass_first_bar
 
     #With corresponded audio data and tab data, use run to correct the tab data by using audio features
-    def calcResult(self, window_size = 2048, threshold = 1.0e-2, samplerate = 44100):
+    def calcResult(self, window_size = 2048, threshold = 1.0e-2, onset_thresh = 10, samplerate = 44100):
         if self.bind_audio.size == 0 : 
             logging.warning('Binded audio data is empty!!\n')
             return
@@ -60,6 +60,9 @@ class AudioAid:
         i = 0
         outputs = []
         for onset in onset_samples:
+            #print(np.sum(np.absolute(mono[onset: onset + window_size])))
+            if np.sum(np.absolute(mono[onset: onset + window_size])) < onset_thresh:
+                continue
             note_contain = tls.NoteDetection(mono[onset: onset + window_size], samplerate, threshold)
             #print(note_contain)
             onset_time = onset/samplerate *1000
@@ -73,6 +76,11 @@ class AudioAid:
                     tab_data =  self.bind_tabdata[j][1:]
                     i = j
                     break
+            pt = []
+            for t in note_contain:
+                pt.append(tls.note_name[t])
+            #print(pt)
+
             tabs = tls.TabCorrection(tab_data, note_contain)
             time_n_tabs = [onset_time] + tabs.tolist()
             outputs.append(time_n_tabs)
@@ -209,6 +217,8 @@ class SlimTabManager:
 
 
     def record(self, filename = ''):
+        self.record_trdata = np.array([])
+        self.temp_array = []
         if self.record_status != 0:
             print("Invalid action, record have been started.")
             return
@@ -223,6 +233,7 @@ class SlimTabManager:
             if self.input_stream.active:
                 self.input_stream.stop()
             self.b.wait()
+            print('click')
             self.input_stream.start()
             self.tRC.start()
         else:

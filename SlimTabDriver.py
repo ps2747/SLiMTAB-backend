@@ -15,6 +15,8 @@ class SliMTABDriver:
         self.s_cmd.settimeout(1)
         self.dev_ip = ip
         self.conn = None
+        self.s_in.bind(('0.0.0.0', 5555))
+        self.s_in.listen()
 
     # Return estimated transmiting time
     def check(self):
@@ -36,8 +38,6 @@ class SliMTABDriver:
             ret[dd//self.num_frets] = max(ret[dd//self.num_frets], dd%self.num_frets+1)
         return ts, l, ret
     def open(self):
-        self.s_in.bind(('0.0.0.0', 5555))
-        self.s_in.listen()
         self._send_cmd(b'\xAA')
         self.conn, _ = self.s_in.accept()
 

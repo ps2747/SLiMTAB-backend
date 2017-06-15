@@ -60,7 +60,7 @@ def TabCorrection(tabs, note_contain, open_tab =openTab):
             for j in range(len(note_contain)):
                 delta = abs(note_contain[j] - (tabs[i] + open_tab[i]))
                 if delta<4 and (note_contain[j] - open_tab[i]) > 0:
-                    out_tabs = [tabs[i]] + out_tabs
+                    out_tabs = [i+1, tabs[i]] + out_tabs
         if out_tabs == []:
             out_tabs = [0]
     return np.array(out_tabs)
@@ -69,6 +69,7 @@ def valueSeparation(length, tab, min_value = 32):
     ret = []
     i = 0
     count = 0
+    
     while length >= 1/32:
         num = int(length//(1/(2**i)))
         count += num
