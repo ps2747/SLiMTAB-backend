@@ -50,7 +50,6 @@ class AudioAid:
             return
         #Onset detection, label all the onsets and extract the note and tabs at that moment
         mono = librosa.core.to_mono(self.bind_audio.T)
-        #mono = self.bind_audio[2][:]
         o_env = librosa.onset.onset_strength(mono, sr = samplerate, aggregate = np.median, fmax = 8000, n_mels = 256)
         times = librosa.frames_to_time(np.arange(len(o_env)), sr = samplerate)
         
@@ -74,9 +73,6 @@ class AudioAid:
                     tab_data =  self.bind_tabdata[j][1:]
                     i = j
                     break
-            pt = []
-            for t in note_contain:
-                pt.append(tls.note_name[t])
 
             tabs = tls.TabCorrection(tab_data, note_contain)
             time_n_tabs = [onset_time] + tabs.tolist()
@@ -131,7 +127,6 @@ class AudioAid:
                     fill_note = 1 - sum_len
                     separated_note = tls.valueSeparation(fill_note, note[1:])
                     bar = bar + separated_note
-                    #bar.append([fill_note] + note[1:])
                     bars.append(bar)
                     bar = []
                     note_len -= fill_note
@@ -139,7 +134,6 @@ class AudioAid:
                 else:
                     separated_note = tls.valueSeparation(note_len, note[1:])
                     bar = bar + separated_note
-                    #bar.append([note_len] + note[1:])
                     sum_len += note_len
                     note_len = 0
         
@@ -376,12 +370,10 @@ class SlimTabManager:
         while not self.q.empty():
             self.this_wavelet = self.q.get()
             self.temp_array.append(self.this_wavelet.flatten())
-        #print('Consumes end')
     
     def _openRecordStream(self, device, sr = 44100, ):
         logging.info('Openning the stream for device: '+str(device['name']))
         stream = sd.InputStream(samplerate = sr, blocksize = 4096, device = device['index'], channels = device['max_input_channels'], callback = self._callback)
-        #stream = sd.InputStream(samplerate = sr, blocksize = 4096, device = device['index'], channels = 1, callback = self._callback)
         return stream
 
     def _getInputDevices(self):
@@ -432,11 +424,6 @@ if __name__ == '__main__':
                 manager.stopRecord()
                 rlt = manager.calc()
                 print(rlt)
-                #for sec in rlt:
-                #    line = []
-                #    for r in  sec:
-                #        line.append(r)
-                    #print(line)
             elif cmd == 'calc':
                 rlt = manager.calc()
                 print(rlt)
