@@ -60,11 +60,9 @@ class AudioAid:
         i = 0
         outputs = []
         for onset in onset_samples:
-            #print(np.sum(np.absolute(mono[onset: onset + window_size])))
             if np.sum(np.absolute(mono[onset: onset + window_size])) < onset_thresh:
                 continue
             note_contain = tls.NoteDetection(mono[onset: onset + window_size], samplerate, threshold)
-            #print(note_contain)
             onset_time = onset/samplerate *1000
             #Find the tabs where onset detected
             for j in range(i, self.bind_tabdata.shape[0]):
@@ -79,7 +77,6 @@ class AudioAid:
             pt = []
             for t in note_contain:
                 pt.append(tls.note_name[t])
-            #print(pt)
 
             tabs = tls.TabCorrection(tab_data, note_contain)
             time_n_tabs = [onset_time] + tabs.tolist()
